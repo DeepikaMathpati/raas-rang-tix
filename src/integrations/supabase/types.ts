@@ -14,16 +14,181 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          amount_paise: number
+          attendee_count: number
+          booking_code: string
+          created_at: string
+          customer_name: string
+          email: string
+          event_date: string
+          id: string
+          mobile: string
+          paid_at: string | null
+          pass_type: Database["public"]["Enums"]["pass_type"]
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          quantity: number
+          razorpay_order_id: string | null
+        }
+        Insert: {
+          amount_paise: number
+          attendee_count: number
+          booking_code: string
+          created_at?: string
+          customer_name: string
+          email: string
+          event_date: string
+          id?: string
+          mobile: string
+          paid_at?: string | null
+          pass_type: Database["public"]["Enums"]["pass_type"]
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          quantity: number
+          razorpay_order_id?: string | null
+        }
+        Update: {
+          amount_paise?: number
+          attendee_count?: number
+          booking_code?: string
+          created_at?: string
+          customer_name?: string
+          email?: string
+          event_date?: string
+          id?: string
+          mobile?: string
+          paid_at?: string | null
+          pass_type?: Database["public"]["Enums"]["pass_type"]
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          quantity?: number
+          razorpay_order_id?: string | null
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount_paise: number
+          booking_id: string
+          created_at: string
+          id: string
+          provider: string
+          razorpay_order_id: string
+          razorpay_payment_id: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          verified_at: string | null
+        }
+        Insert: {
+          amount_paise: number
+          booking_id: string
+          created_at?: string
+          id?: string
+          provider?: string
+          razorpay_order_id: string
+          razorpay_payment_id?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          verified_at?: string | null
+        }
+        Update: {
+          amount_paise?: number
+          booking_id?: string
+          created_at?: string
+          id?: string
+          provider?: string
+          razorpay_order_id?: string
+          razorpay_payment_id?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          attendee_index: number
+          attendee_name: string | null
+          booking_id: string
+          checked_in_at: string | null
+          checked_in_by: string | null
+          created_at: string
+          event_date: string
+          id: string
+          ticket_code: string
+        }
+        Insert: {
+          attendee_index: number
+          attendee_name?: string | null
+          booking_id: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          created_at?: string
+          event_date: string
+          id?: string
+          ticket_code: string
+        }
+        Update: {
+          attendee_index?: number
+          attendee_name?: string | null
+          booking_id?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          created_at?: string
+          event_date?: string
+          id?: string
+          ticket_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_in_ticket: { Args: { _code: string }; Returns: Json }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "staff"
+      pass_type: "individual" | "squad"
+      payment_status: "pending" | "paid" | "failed" | "refunded"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +315,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "staff"],
+      pass_type: ["individual", "squad"],
+      payment_status: ["pending", "paid", "failed", "refunded"],
+    },
   },
 } as const
