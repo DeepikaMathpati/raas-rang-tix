@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep cinematic festival effects isolated in reusable presentation components and CSS so booking and payment logic remain untouched.

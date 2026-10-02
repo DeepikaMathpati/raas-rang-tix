@@ -55,7 +55,10 @@ function BookPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!/^[6-9]\d{9}$/.test(form.mobile)) return toast.error("Enter a valid 10-digit mobile number");
+    if (!/^[6-9]\d{9}$/.test(form.mobile)) {
+      toast.error("Enter a valid 10-digit mobile number");
+      return;
+    }
     setBusy(true);
     try {
       const res = await create({ data: { customerName: form.name, mobile: form.mobile, email: form.email, eventDate: date, passType, quantity: qty } });

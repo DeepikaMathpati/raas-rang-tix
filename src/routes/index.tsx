@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import hero from "@/assets/hero.jpg";
 import { EVENT, EVENT_DATES, HIGHLIGHTS, PASSES, SQUAD_SAVINGS, inr } from "@/lib/event";
 import { btnGold, btnOutline, Diya, MandalaBg, Ornament, SectionTitle } from "@/components/festive";
+import { CinematicHeroEffects } from "@/components/cinematic-hero-effects";
 
 const TITLE = "Raas Mahotsav 2026 — Navratri Dandiya & Garba in Kalaburagi | 16–18 Oct";
 const DESC =
@@ -104,15 +105,18 @@ function Home() {
       <Nav />
 
       {/* HERO */}
-      <section className="relative flex min-h-[100svh] items-end pb-12 pt-24 sm:items-center">
+      <section className="cinematic-hero relative flex min-h-[100svh] items-end overflow-hidden pb-14 pt-24 sm:items-center">
         <img src={hero} alt="" width={1088} height={1440} className="absolute inset-0 h-full w-full object-cover" fetchPriority="high" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/40 to-background" />
+        <div className="hero-image-grade absolute inset-0" />
+        <CinematicHeroEffects />
         <MandalaBg className="-right-40 -top-40 w-[34rem] opacity-[0.12]" />
-        <div className="relative mx-auto w-full max-w-4xl px-5 text-center animate-rise">
-          <p className="text-xs uppercase tracking-[0.35em] text-gold-soft">{EVENT.subtitle} · {EVENT.city}</p>
-          <h1 className="mt-4 text-5xl leading-none text-gold-gradient drop-shadow sm:text-7xl md:text-8xl">RAAS<br />MAHOTSAV</h1>
-          <p className="mt-1 font-display text-xl tracking-[0.5em] text-gold-soft sm:text-2xl">2026</p>
-          <p className="mt-3 font-script text-4xl text-ember sm:text-5xl">{EVENT.tagline}</p>
+        <div className="hero-content relative z-10 mx-auto w-full max-w-4xl px-5 text-center animate-rise">
+          <p className="hero-kicker text-xs uppercase tracking-[0.35em] text-gold-soft">{EVENT.subtitle} · {EVENT.city}</p>
+          <h1 className="hero-title mt-4 text-5xl leading-none sm:text-7xl md:text-8xl" data-title="RAAS MAHOTSAV">
+            <span>RAAS</span><br /><span>MAHOTSAV</span>
+          </h1>
+          <p className="hero-year mt-1 font-display text-xl tracking-[0.5em] text-gold-soft sm:text-2xl">2026</p>
+          <p className="hero-tagline mt-3 font-script text-4xl text-ember sm:text-5xl">{EVENT.tagline}</p>
           <Ornament className="my-6" />
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-lg">
             <span className="inline-flex items-center gap-2"><Calendar className="h-4 w-4 text-gold" />16 · 17 · 18 October</span>
@@ -121,14 +125,14 @@ function Home() {
           <p className="mt-2 inline-flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4 text-gold" />{EVENT.venueName}, Kootnoor, Kalaburagi</p>
           <div className="mx-auto mt-8 max-w-md"><Countdown /></div>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link to="/book" className={btnGold}>Book Your Pass</Link>
+            <Link to="/book" className={`${btnGold} hero-cta`}>Book Your Pass</Link>
             <a href="#passes" className={btnOutline}>View Passes · from {inr(349)}</a>
           </div>
         </div>
       </section>
 
       {/* INTRO */}
-      <section className="relative px-5 py-20">
+      <section className="section-spark relative px-5 py-20">
         <div className="mx-auto max-w-3xl text-center">
           <SectionTitle kicker="Jai Mata Di" title="Three Nights of Raas" />
           <p className="text-xl leading-relaxed text-foreground/90">
@@ -141,12 +145,12 @@ function Home() {
       </section>
 
       {/* HIGHLIGHTS */}
-      <section id="highlights" className="relative px-5 py-20">
+      <section id="highlights" className="section-spark relative px-5 py-20">
         <MandalaBg className="-left-48 top-10 w-[30rem]" />
         <SectionTitle kicker="What awaits" title="Festival Highlights" />
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:grid-cols-3">
           {HIGHLIGHTS.map((h, i) => {
-            const Icon = ICONS[i];
+            const Icon = ICONS[i] ?? Sparkles;
             return (
               <div key={h} className="ornate-frame rounded-lg p-5 text-center transition-transform hover:-translate-y-1 sm:p-7">
                 <Icon className="mx-auto h-7 w-7 text-gold" />
@@ -158,7 +162,7 @@ function Home() {
       </section>
 
       {/* DATES */}
-      <section className="px-5 py-20">
+      <section className="section-spark px-5 py-20">
         <SectionTitle kicker="Mark your nights" title="Event Dates" />
         <div className="mx-auto grid max-w-4xl grid-cols-3 gap-3 sm:gap-6">
           {EVENT_DATES.map((d) => (
@@ -175,7 +179,7 @@ function Home() {
       </section>
 
       {/* PASSES */}
-      <section id="passes" className="relative px-5 py-20">
+      <section id="passes" className="section-spark relative px-5 py-20">
         <SectionTitle kicker="Choose your entry" title="Passes" />
         <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
           <div className="ornate-frame flex flex-col rounded-xl p-8 text-center">
@@ -218,7 +222,7 @@ function Home() {
       </section>
 
       {/* VENUE */}
-      <section id="venue" className="px-5 py-20">
+      <section id="venue" className="section-spark px-5 py-20">
         <SectionTitle kicker="Find us" title="Venue" />
         <div className="ornate-frame mx-auto max-w-2xl rounded-xl p-8 text-center">
           <MapPin className="mx-auto h-8 w-8 text-gold" />
@@ -242,7 +246,7 @@ function Home() {
             ["How do I enter?", "After payment, you'll get a booking page with QR passes. Show the QR at the entrance; each QR can be scanned only once."],
             ["Where is the venue?", EVENT.venueAddress],
             ["Who do I contact for help?", `Call or WhatsApp ${EVENT.phone}.`],
-          ].map(([q, a]) => (
+          ].map(([q = "", a = ""]) => (
             <AccordionItem key={q} value={q}>
               <AccordionTrigger className="text-left font-display text-sm uppercase tracking-wider text-gold-soft">{q}</AccordionTrigger>
               <AccordionContent className="text-lg text-foreground/85">{a}</AccordionContent>

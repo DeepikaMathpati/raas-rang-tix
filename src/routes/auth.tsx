@@ -33,7 +33,7 @@ function AuthPage() {
     setBusy(false);
     if (error) return toast.error(error.message);
     if (mode === "up") return toast.success("Check your email to confirm your account.");
-    navigate({ to: "/admin" });
+    return navigate({ to: "/admin" });
   }
 
   return (
