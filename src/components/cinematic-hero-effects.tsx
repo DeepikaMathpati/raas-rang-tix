@@ -124,8 +124,9 @@ export function CinematicHeroEffects() {
 
       if (!reducedMotion.matches) {
         const elapsed = now - cycleStarted;
-        if (nextBurst < BURSTS.length && elapsed >= BURSTS[nextBurst].delay) {
-          createBurst(BURSTS[nextBurst]);
+        const burst = BURSTS[nextBurst];
+        if (burst && elapsed >= burst.delay) {
+          createBurst(burst);
           nextBurst += 1;
         }
         if (elapsed > 7_000) {
@@ -138,6 +139,7 @@ export function CinematicHeroEffects() {
       ctx.globalCompositeOperation = "lighter";
       for (let index = sparks.length - 1; index >= 0; index -= 1) {
         const spark = sparks[index];
+        if (!spark) continue;
         spark.life += 1;
         spark.x += spark.vx;
         spark.y += spark.vy;
@@ -160,6 +162,7 @@ export function CinematicHeroEffects() {
     };
 
     const observer = new IntersectionObserver(([entry]) => {
+      if (!entry) return;
       running = entry.isIntersecting;
       if (running) frame = requestAnimationFrame(draw);
       else cancelAnimationFrame(frame);

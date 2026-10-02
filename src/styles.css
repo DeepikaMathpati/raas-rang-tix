@@ -180,7 +180,6 @@
 }
 .dandiya-trails path {
   fill: none;
-  stroke: url("#none");
   stroke: var(--gold-soft);
   stroke-width: 1.2;
   stroke-linecap: round;
@@ -202,15 +201,16 @@
   mask-image: linear-gradient(to bottom, transparent, black 25%);
 }
 .festival-crowd > span {
-  --crowd-index: 0;
   position: relative;
   width: clamp(18px, 3vw, 42px);
-  height: calc(48% + mod(var(--crowd-index), 4) * 7%);
+  height: 58%;
   border-radius: 50% 50% 18% 18%;
   background: color-mix(in oklab, var(--night-deep) 94%, transparent);
   transform-origin: bottom center;
-  animation: crowd-sway calc(3.7s + mod(var(--crowd-index), 4) * .45s) ease-in-out infinite alternate;
+  animation: crowd-sway 4.4s ease-in-out infinite alternate;
 }
+.festival-crowd > span:nth-child(3n) { height: 72%; animation-duration: 5.1s; }
+.festival-crowd > span:nth-child(3n + 1) { height: 49%; animation-duration: 3.8s; }
 .festival-crowd > span::before {
   content: "";
   position: absolute;
@@ -231,8 +231,9 @@
   height: 6px;
   border-radius: 99px;
   background: inherit;
-  transform: translateX(-50%) rotate(calc(-22deg + mod(var(--crowd-index), 3) * 22deg));
+  transform: translateX(-50%) rotate(-18deg);
 }
+.festival-crowd > span:nth-child(even)::after { transform: translateX(-50%) rotate(19deg); }
 .hero-diya-line {
   position: absolute;
   inset: auto 3% 4%;
@@ -242,7 +243,6 @@
   opacity: .85;
 }
 .hero-diya-line span {
-  --diya-index: 0;
   position: relative;
   width: 22px;
   height: 8px;
@@ -260,8 +260,10 @@
   background: var(--gold-soft);
   box-shadow: 0 0 8px var(--gold-soft), 0 0 24px var(--ember);
   transform: translateX(-50%);
-  animation: flame-dance calc(1.8s + mod(var(--diya-index), 3) * .24s) ease-in-out infinite alternate;
+  animation: flame-dance 2s ease-in-out infinite alternate;
 }
+.hero-diya-line span:nth-child(3n) i { animation-duration: 1.7s; }
+.hero-diya-line span:nth-child(3n + 1) i { animation-duration: 2.25s; }
 .hero-content { text-shadow: 0 2px 28px var(--background); }
 .hero-kicker { animation: letter-reveal 1s ease-out .35s both; }
 .hero-title {

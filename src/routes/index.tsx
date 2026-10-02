@@ -150,7 +150,7 @@ function Home() {
         <SectionTitle kicker="What awaits" title="Festival Highlights" />
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:grid-cols-3">
           {HIGHLIGHTS.map((h, i) => {
-            const Icon = ICONS[i];
+            const Icon = ICONS[i] ?? Sparkles;
             return (
               <div key={h} className="ornate-frame rounded-lg p-5 text-center transition-transform hover:-translate-y-1 sm:p-7">
                 <Icon className="mx-auto h-7 w-7 text-gold" />
@@ -246,7 +246,7 @@ function Home() {
             ["How do I enter?", "After payment, you'll get a booking page with QR passes. Show the QR at the entrance; each QR can be scanned only once."],
             ["Where is the venue?", EVENT.venueAddress],
             ["Who do I contact for help?", `Call or WhatsApp ${EVENT.phone}.`],
-          ].map(([q, a]) => (
+          ].map(([q = "", a = ""]) => (
             <AccordionItem key={q} value={q}>
               <AccordionTrigger className="text-left font-display text-sm uppercase tracking-wider text-gold-soft">{q}</AccordionTrigger>
               <AccordionContent className="text-lg text-foreground/85">{a}</AccordionContent>
