@@ -263,10 +263,26 @@ function Home() {
         <Link to="/book" className={`${btnGold} relative mt-8`}>Book Your Pass</Link>
       </section>
       <footer className="border-t border-border px-5 pb-28 pt-10 text-center text-sm text-muted-foreground sm:pb-10">
-        <p className="font-display tracking-[0.2em] text-gold-soft">RAAS MAHOTSAV 2026</p>
+        <p className="font-display tracking-[0.2em] text-gold-soft">
+          RAAS MAHOTSAV 2026
+        </p>
+
         <p className="mt-2">{EVENT.venueAddress}</p>
+
         <p className="mt-1">Co-Partner: {EVENT.coPartner}</p>
-        <p className="mt-1"><a href={EVENT.phoneHref} className="text-gold">{EVENT.phone}</a></p>
+
+        <p className="mt-1">
+          <a href={EVENT.phoneHref} className="text-gold">
+            {EVENT.phone}
+          </a>
+        </p>
+
+        <Link
+          to="/auth"
+          className="mt-5 inline-block text-xs uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors hover:text-gold"
+        >
+          Organiser Login
+        </Link>
       </footer>
 
       {/* Mobile sticky CTA */}
