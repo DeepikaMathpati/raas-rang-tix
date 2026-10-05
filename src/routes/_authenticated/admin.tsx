@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import QrScanner from "qr-scanner";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -56,10 +57,163 @@ function Admin() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
   const [code, setCode] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const scannerRef = useRef<QrScanner | null>(null);
+  const cameraRequestRef = useRef(0);
+  const invalidQrRef = useRef<string | null>(null);
+
+  const stopCamera = useCallback(() => {
+    cameraRequestRef.current += 1;
+
+    scannerRef.current?.destroy();
+    scannerRef.current = null;
+
+    cameraStreamRef.current
+      ?.getTracks()
+      .forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
+    setIsScanning(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    stopCamera();
+    setScannerError(null);
+    invalidQrRef.current = null;
+
+    const video = videoRef.current;
+    if (!video) {
+      setScannerError("Camera preview is unavailable. Enter the ticket code manually.");
+      return;
+    }
+
+    const requestId = cameraRequestRef.current;
+    let stream: MediaStream | null = null;
+    let scanner: QrScanner | null = null;
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera access is unavailable in this browser.");
+      }
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+          },
+        });
+      } catch (cameraError) {
+        if (
+          !(cameraError instanceof Error) ||
+          cameraError.name !== "OverconstrainedError"
+        ) {
+          throw cameraError;
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        });
+      }
+
+      if (requestId !== cameraRequestRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      cameraStreamRef.current = stream;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.muted = true;
+      video.srcObject = stream;
+      setIsScanning(true);
+      await video.play();
+
+      if (requestId !== cameraRequestRef.current) {
+        return;
+      }
+
+      scanner = new QrScanner(
+        video,
+        ({ data }) => {
+          const ticketCode = data.trim();
+          if (!/^T-[A-Z0-9]{14}$/i.test(ticketCode)) {
+            if (invalidQrRef.current !== ticketCode) {
+              invalidQrRef.current = ticketCode;
+              setScannerError(
+                "Invalid QR code. Scan a Raas Mahotsav ticket QR or enter its ticket code manually.",
+              );
+            }
+            return;
+          }
+
+          if (scannerRef.current !== scanner) {
+            return;
+          }
+
+          setScannerError(null);
+          setCode(ticketCode.toUpperCase());
+          stopCamera();
+          toast.success("QR scanned. Press Check in to verify the ticket.");
+        },
+        { returnDetailedScanResult: true },
+      );
+      scannerRef.current = scanner;
+      await scanner.start();
+      if (requestId !== cameraRequestRef.current) {
+        scanner.destroy();
+        return;
+      }
+    } catch (cameraError) {
+      if (requestId !== cameraRequestRef.current) {
+        if (cameraStreamRef.current !== stream) {
+          stream?.getTracks().forEach((track) => track.stop());
+        }
+        scanner?.destroy();
+        return;
+      }
+
+      stopCamera();
+
+      const errorName =
+        cameraError instanceof Error ? cameraError.name : "";
+      const message =
+        cameraError instanceof Error ? cameraError.message : "";
+      console.error("Unable to start QR scanner:", cameraError);
+
+      if (errorName === "NotAllowedError" || errorName === "SecurityError") {
+        setScannerError(
+          "Camera permission was denied or blocked. Allow camera access in your browser, or enter the ticket code manually.",
+        );
+      } else if (
+        errorName === "NotFoundError" ||
+        errorName === "DevicesNotFoundError" ||
+        /camera (not found|access is unavailable)/i.test(message)
+      ) {
+        setScannerError(
+          "No camera was found on this device. Enter the ticket code manually.",
+        );
+      } else {
+        setScannerError(
+          "The camera is unavailable or could not be started. Check that it is connected and not in use, or enter the ticket code manually.",
+        );
+      }
+    }
+  }, [stopCamera]);
 
   async function loadAdminData() {
     try {
@@ -94,6 +248,14 @@ function Admin() {
   useEffect(() => {
     loadAdminData();
   }, [q, status]);
+
+  useEffect(() => {
+    if (loading || error || !data?.authorized) {
+      return;
+    }
+
+    return stopCamera;
+  }, [data?.authorized, error, loading, stopCamera]);
 
   async function doCheckIn(
     e: React.FormEvent,
@@ -338,6 +500,45 @@ function Admin() {
               Scan a QR code or enter the ticket code manually.
             </div>
           </div>
+
+          <div className="mb-3 flex flex-wrap gap-3">
+            {isScanning ? (
+              <button
+                type="button"
+                className={btnOutline}
+                onClick={stopCamera}
+              >
+                Stop camera
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={btnOutline}
+                onClick={() => void startCamera()}
+              >
+                Start camera scanner
+              </button>
+            )}
+          </div>
+
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            aria-label="Ticket QR scanner camera preview"
+            className={
+              isScanning
+                ? "mb-3 aspect-video max-h-80 w-full rounded-lg bg-black object-contain sm:max-w-md"
+                : "hidden"
+            }
+          />
+
+          {scannerError && (
+            <p role="alert" className="mb-3 text-sm text-red-400">
+              {scannerError}
+            </p>
+          )}
 
           <form
             onSubmit={doCheckIn}
