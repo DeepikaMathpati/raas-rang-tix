@@ -13,7 +13,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BookRouteImport } from './routes/book'
+import { Route as EventRouteImport } from './routes/event'
 import { Route as MyTicketsRouteImport } from './routes/my-tickets'
+import { Route as PassesRouteImport } from './routes/passes'
+import { Route as VenueRouteImport } from './routes/venue'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as BookingCodeRouteImport } from './routes/booking.$code'
 
@@ -36,9 +39,24 @@ const BookRoute = BookRouteImport.update({
   path: '/book',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventRoute = EventRouteImport.update({
+  id: '/event',
+  path: '/event',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MyTicketsRoute = MyTicketsRouteImport.update({
   id: '/my-tickets',
   path: '/my-tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PassesRoute = PassesRouteImport.update({
+  id: '/passes',
+  path: '/passes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VenueRoute = VenueRouteImport.update({
+  id: '/venue',
+  path: '/venue',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -56,7 +74,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/event': typeof EventRoute
   '/my-tickets': typeof MyTicketsRoute
+  '/passes': typeof PassesRoute
+  '/venue': typeof VenueRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/booking/$code': typeof BookingCodeRoute
 }
@@ -64,7 +85,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/event': typeof EventRoute
   '/my-tickets': typeof MyTicketsRoute
+  '/passes': typeof PassesRoute
+  '/venue': typeof VenueRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/booking/$code': typeof BookingCodeRoute
 }
@@ -74,23 +98,46 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/event': typeof EventRoute
   '/my-tickets': typeof MyTicketsRoute
+  '/passes': typeof PassesRoute
+  '/venue': typeof VenueRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/booking/$code': typeof BookingCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/book' | '/my-tickets' | '/admin' | '/booking/$code'
+    | '/'
+    | '/auth'
+    | '/book'
+    | '/event'
+    | '/my-tickets'
+    | '/passes'
+    | '/venue'
+    | '/admin'
+    | '/booking/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/book' | '/my-tickets' | '/admin' | '/booking/$code'
+  to:
+    | '/'
+    | '/auth'
+    | '/book'
+    | '/event'
+    | '/my-tickets'
+    | '/passes'
+    | '/venue'
+    | '/admin'
+    | '/booking/$code'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/book'
+    | '/event'
     | '/my-tickets'
+    | '/passes'
+    | '/venue'
     | '/_authenticated/admin'
     | '/booking/$code'
   fileRoutesById: FileRoutesById
@@ -100,7 +147,10 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
+  EventRoute: typeof EventRoute
   MyTicketsRoute: typeof MyTicketsRoute
+  PassesRoute: typeof PassesRoute
+  VenueRoute: typeof VenueRoute
   BookingCodeRoute: typeof BookingCodeRoute
 }
 
@@ -134,11 +184,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/event': {
+      id: '/event'
+      path: '/event'
+      fullPath: '/event'
+      preLoaderRoute: typeof EventRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/my-tickets': {
       id: '/my-tickets'
       path: '/my-tickets'
       fullPath: '/my-tickets'
       preLoaderRoute: typeof MyTicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/passes': {
+      id: '/passes'
+      path: '/passes'
+      fullPath: '/passes'
+      preLoaderRoute: typeof PassesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/venue': {
+      id: '/venue'
+      path: '/venue'
+      fullPath: '/venue'
+      preLoaderRoute: typeof VenueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -174,7 +245,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
+  EventRoute: EventRoute,
   MyTicketsRoute: MyTicketsRoute,
+  PassesRoute: PassesRoute,
+  VenueRoute: VenueRoute,
   BookingCodeRoute: BookingCodeRoute,
 }
 export const routeTree = rootRouteImport
