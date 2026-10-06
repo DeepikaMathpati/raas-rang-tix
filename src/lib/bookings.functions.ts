@@ -542,6 +542,90 @@ export const getBooking = createServerFn({
       ticket,
     };
   });
+
+function getClaimEmail(claims: unknown) {
+  if (typeof claims !== "object" || claims === null || !("email" in claims)) {
+    return null;
+  }
+
+  const email = claims.email;
+  return typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
+}
+
+export const getMyTickets = createServerFn({
+  method: "GET",
+})
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const authenticatedUserEmail = getClaimEmail(context.claims);
+    if (!authenticatedUserEmail) {
+      throw new Error("No authenticated email address was found for this account.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: bookings, error: bookingsError } = await supabaseAdmin
+      .from("bookings")
+      .select(
+        "id, booking_code, customer_name, mobile, event_date, pass_type, attendee_count, amount_paise, payment_status",
+      )
+      .eq("email", authenticatedUserEmail)
+      .order("created_at", { ascending: false });
+
+    if (bookingsError) {
+      console.error("Customer bookings lookup failed:", bookingsError);
+      throw new Error("Could not load your tickets.");
+    }
+
+    if (!bookings?.length) {
+      return [];
+    }
+
+    const bookingIds = bookings.map((booking) => booking.id);
+    const [{ data: attendees, error: attendeesError }, { data: tickets, error: ticketsError }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("attendees")
+          .select("booking_id, attendee_index, attendee_name")
+          .in("booking_id", bookingIds)
+          .order("attendee_index", { ascending: true }),
+        supabaseAdmin
+          .from("tickets")
+          .select("booking_id, ticket_code, checked_in_at")
+          .in("booking_id", bookingIds),
+      ]);
+
+    if (attendeesError) {
+      console.error("Customer attendee lookup failed:", attendeesError);
+      throw new Error("Could not load attendee details for your tickets.");
+    }
+    if (ticketsError) {
+      console.error("Customer ticket lookup failed:", ticketsError);
+      throw new Error("Could not load ticket codes for your bookings.");
+    }
+
+    return bookings.map((booking) => {
+      const ticket = tickets?.find((row) => row.booking_id === booking.id);
+      return {
+        booking_code: booking.booking_code,
+        customer_name: booking.customer_name,
+        mobile: booking.mobile,
+        event_date: booking.event_date,
+        pass_type: booking.pass_type,
+        attendee_count: booking.attendee_count,
+        amount_paise: booking.amount_paise,
+        payment_status: booking.payment_status,
+        attendees: (attendees ?? [])
+          .filter((attendee) => attendee.booking_id === booking.id)
+          .map(({ attendee_index, attendee_name }) => ({
+            attendee_index,
+            attendee_name,
+          })),
+        ticket_code: ticket?.ticket_code ?? null,
+        checked_in_at: ticket?.checked_in_at ?? null,
+      };
+    });
+  });
 // ============================================================
 // ADMIN DATA
 // ============================================================

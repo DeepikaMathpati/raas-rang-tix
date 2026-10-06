@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BookRouteImport } from './routes/book'
+import { Route as MyTicketsRouteImport } from './routes/my-tickets'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as BookingCodeRouteImport } from './routes/booking.$code'
 
@@ -35,6 +36,11 @@ const BookRoute = BookRouteImport.update({
   path: '/book',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MyTicketsRoute = MyTicketsRouteImport.update({
+  id: '/my-tickets',
+  path: '/my-tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -50,6 +56,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/my-tickets': typeof MyTicketsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/booking/$code': typeof BookingCodeRoute
 }
@@ -57,6 +64,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/my-tickets': typeof MyTicketsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/booking/$code': typeof BookingCodeRoute
 }
@@ -66,20 +74,23 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/book': typeof BookRoute
+  '/my-tickets': typeof MyTicketsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/booking/$code': typeof BookingCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/book' | '/admin' | '/booking/$code'
+  fullPaths:
+    '/' | '/auth' | '/book' | '/my-tickets' | '/admin' | '/booking/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/book' | '/admin' | '/booking/$code'
+  to: '/' | '/auth' | '/book' | '/my-tickets' | '/admin' | '/booking/$code'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/book'
+    | '/my-tickets'
     | '/_authenticated/admin'
     | '/booking/$code'
   fileRoutesById: FileRoutesById
@@ -89,6 +100,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   BookRoute: typeof BookRoute
+  MyTicketsRoute: typeof MyTicketsRoute
   BookingCodeRoute: typeof BookingCodeRoute
 }
 
@@ -120,6 +132,13 @@ declare module '@tanstack/react-router' {
       path: '/book'
       fullPath: '/book'
       preLoaderRoute: typeof BookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-tickets': {
+      id: '/my-tickets'
+      path: '/my-tickets'
+      fullPath: '/my-tickets'
+      preLoaderRoute: typeof MyTicketsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -155,6 +174,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   BookRoute: BookRoute,
+  MyTicketsRoute: MyTicketsRoute,
   BookingCodeRoute: BookingCodeRoute,
 }
 export const routeTree = rootRouteImport

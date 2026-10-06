@@ -148,10 +148,10 @@ function Nav() {
           </a>
         </nav>
         <Link
-          to="/book"
+          to="/my-tickets"
           className="rounded-full bg-gold-gradient px-4 py-2 font-display text-xs font-semibold uppercase tracking-widest text-primary-foreground"
         >
-          Book Pass
+          MY TICKETS
         </Link>
       </div>
     </header>
