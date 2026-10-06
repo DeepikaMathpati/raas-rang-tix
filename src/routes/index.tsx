@@ -12,6 +12,7 @@ import {
   Utensils,
   Sparkles,
   Users,
+  Instagram,
 } from "lucide-react";
 import {
   Accordion,
@@ -20,6 +21,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import hero from "@/assets/hero.jpg";
+import bloomingMindsLogo from "@/assets/blooming-minds-international-school.jpeg";
+import parvatiSilksLogo from "@/assets/parvati-silks.jpeg";
+import veerabhadreshwaraEventsLogo from "@/assets/veerabhadreshwara-events.jpeg";
 import { EVENT, EVENT_DATES, HIGHLIGHTS, PASSES, SQUAD_SAVINGS, inr } from "@/lib/event";
 import { getPublicSiteSettings } from "@/lib/bookings.functions";
 import { btnGold, btnOutline, Diya, MandalaBg, Ornament, SectionTitle } from "@/components/festive";
@@ -268,19 +272,98 @@ function Home() {
       </section>
 
       {/* INTRO */}
-      <section className="section-spark relative px-5 py-20">
+      <section className="section-spark relative px-5 py-12">
         <div className="mx-auto max-w-3xl text-center">
           <SectionTitle kicker="Jai Mata Di" title="Three Nights of Raas" />
           <p className="text-xl leading-relaxed text-foreground/90">{site.introText}</p>
-          <p className="mt-6 text-sm uppercase tracking-[0.25em] text-muted-foreground">
-            Co-Partner
-          </p>
-          <p className="mt-1 font-display text-gold-soft">{site.coPartner}</p>
+          <div className="ornate-frame mx-auto mt-10 flex max-w-md flex-col items-center gap-4 rounded-xl px-8 py-6 sm:flex-row sm:text-left">
+            <img
+              src={bloomingMindsLogo}
+              alt={`${site.coPartner} logo`}
+              width={112}
+              height={112}
+              loading="lazy"
+              className="h-28 w-28 shrink-0 rounded-full bg-white object-cover"
+            />
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                Proud Co-Partner
+              </p>
+              <p className="mt-2 font-display text-lg text-gold-soft">{site.coPartner}</p>
+            </div>
+          </div>
+          <div className="mx-auto mt-12 max-w-4xl">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              Our Sponsors
+            </p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {[
+                { name: "Parvati Silks", logo: parvatiSilksLogo },
+                { name: "Veerabhadreshwara Events", logo: veerabhadreshwaraEventsLogo },
+              ].map((sponsor) => (
+                <div
+                  key={sponsor.name}
+                  className="ornate-frame flex min-h-32 items-center justify-center gap-4 rounded-xl p-5"
+                >
+                  <img
+                    src={sponsor.logo}
+                    alt={`${sponsor.name} logo`}
+                    width={104}
+                    height={104}
+                    loading="lazy"
+                    className="h-24 w-24 shrink-0 rounded-full bg-white object-contain"
+                  />
+                  <span className="text-left font-display text-base font-semibold uppercase tracking-wider text-gold-soft sm:text-lg">
+                    {sponsor.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mx-auto mt-12 w-full max-w-5xl">
+            <SectionTitle kicker="Relive the energy" title="Event Videos" />
+            <div className="grid gap-6 md:grid-cols-2">
+              {[
+                {
+                  title: "Raas Event Highlights",
+                  src: "/event-videos/raas-event-highlights.mov",
+                },
+                {
+                  title: "Raas Celebration",
+                  src: "/event-videos/raas-event-celebration.mp4?v=2",
+                },
+              ].map((video) => (
+                <article key={video.src} className="ornate-frame rounded-xl p-3">
+                  <h3 className="mb-3 text-center font-display text-lg text-gold-soft">
+                    {video.title}
+                  </h3>
+                  <video
+                    className="aspect-video w-full rounded-lg bg-black object-contain"
+                    controls
+                    playsInline
+                    preload="metadata"
+                  >
+                    <source src={video.src} />
+                    Your browser does not support embedded videos.
+                  </video>
+                </article>
+              ))}
+            </div>
+          </div>
+          <a
+            href="https://www.instagram.com/raas_mahotsav_klb?stkn=cWFzcDN5dnZmdXV0"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-8 inline-flex items-center gap-2 rounded-full border border-gold/50 px-5 py-3 text-sm text-gold-soft transition-colors hover:bg-gold/10"
+          >
+            <Instagram className="h-4 w-4" />
+            Follow us on Instagram · @raas_mahotsav_klb
+          </a>
         </div>
       </section>
 
       {/* HIGHLIGHTS */}
-      <section id="highlights" className="section-spark relative px-5 py-20">
+      <section id="highlights" className="section-spark relative px-5 py-12">
         <MandalaBg className="-left-48 top-10 w-[30rem]" />
         <SectionTitle kicker="What awaits" title="Festival Highlights" />
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:grid-cols-3">
@@ -302,7 +385,7 @@ function Home() {
       </section>
 
       {/* DATES */}
-      <section className="section-spark px-5 py-20">
+      <section className="section-spark px-5 py-12">
         <SectionTitle kicker="Mark your nights" title="Event Dates" />
         <div className="mx-auto grid max-w-4xl grid-cols-3 gap-3 sm:gap-6">
           {EVENT_DATES.map((d) => (
@@ -326,7 +409,7 @@ function Home() {
       </section>
 
       {/* PASSES */}
-      <section id="passes" className="section-spark relative px-5 py-20">
+      <section id="passes" className="section-spark relative px-5 py-12">
         <SectionTitle kicker="Choose your entry" title="Passes" />
         <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
           <div className="ornate-frame flex flex-col rounded-xl p-8 text-center">
@@ -360,7 +443,7 @@ function Home() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="px-5 py-16">
+      <section className="px-5 py-10">
         <SectionTitle kicker="Simple & secure" title="How Booking Works" />
         <ol className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-3">
           {["Choose your night & pass", "Pay securely online", "Get QR passes for entry"].map(
@@ -377,7 +460,7 @@ function Home() {
       </section>
 
       {/* ATMOSPHERE */}
-      <section className="px-5 py-16">
+      <section className="px-5 py-10">
         <SectionTitle kicker="The mood" title="An Evening of Lanterns & Rhythm" />
         <div className="ornate-frame mx-auto max-w-4xl overflow-hidden rounded-xl p-2">
           <img
@@ -395,13 +478,13 @@ function Home() {
       </section>
 
       {/* VENUE */}
-      <section id="venue" className="section-spark px-5 py-20">
+      <section id="venue" className="section-spark px-5 py-12">
         <SectionTitle kicker="Find us" title="Venue" />
         <div className="ornate-frame mx-auto max-w-2xl rounded-xl p-8 text-center">
           <MapPin className="mx-auto h-8 w-8 text-gold" />
           <h3 className="mt-3 font-display text-xl text-gold-soft">{site.venueName}</h3>
           <p className="mt-2 text-lg">{site.venueAddress}</p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
             <a href={mapUrl} target="_blank" rel="noopener noreferrer" className={btnOutline}>
               Open in Google Maps
             </a>
@@ -409,12 +492,16 @@ function Home() {
               <Phone className="h-4 w-4" />
               {site.phone}
             </a>
+            <a href={EVENT.secondaryPhoneHref} className={btnOutline}>
+              <Phone className="h-4 w-4" />
+              {EVENT.secondaryPhone}
+            </a>
           </div>
         </div>
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="px-5 py-20">
+      <section id="faq" className="px-5 py-12">
         <SectionTitle kicker="Good to know" title="FAQ" />
         <Accordion type="single" collapsible className="mx-auto max-w-2xl">
           {[
@@ -432,7 +519,10 @@ function Home() {
               "After payment, you'll get a booking page with QR passes. Show the QR at the entrance; each QR can be scanned only once.",
             ],
             ["Where is the venue?", site.venueAddress],
-            ["Who do I contact for help?", `Call or WhatsApp ${site.phone}.`],
+            [
+              "Who do I contact for help?",
+              `Call or WhatsApp ${site.phone} or ${EVENT.secondaryPhone}.`,
+            ],
           ].map(([q = "", a = ""]) => (
             <AccordionItem key={q} value={q}>
               <AccordionTrigger className="text-left font-display text-sm uppercase tracking-wider text-gold-soft">
@@ -445,7 +535,7 @@ function Home() {
       </section>
 
       {/* CTA + FOOTER */}
-      <section className="relative overflow-hidden px-5 py-24 text-center">
+      <section className="relative overflow-hidden px-5 py-12 text-center">
         <MandalaBg className="left-1/2 top-1/2 w-[40rem] -translate-x-1/2 -translate-y-1/2 opacity-10" />
         <p className="relative font-script text-5xl text-ember">Aavo Ramva!</p>
         <h2 className="relative mt-2 text-3xl uppercase text-gold-gradient sm:text-5xl">
@@ -462,9 +552,12 @@ function Home() {
 
         <p className="mt-1">Co-Partner: {site.coPartner}</p>
 
-        <p className="mt-1">
+        <p className="mt-1 flex flex-wrap justify-center gap-x-3">
           <a href={phoneHref} className="text-gold">
-            {EVENT.phone}
+            {site.phone}
+          </a>
+          <a href={EVENT.secondaryPhoneHref} className="text-gold">
+            {EVENT.secondaryPhone}
           </a>
         </p>
 

@@ -195,6 +195,10 @@ function BookingPage() {
             >
               {EVENT.phone}
             </a>
+            {" or "}
+            <a href={EVENT.secondaryPhoneHref} className="text-gold">
+              {EVENT.secondaryPhone}
+            </a>
             .
           </p>
         )}

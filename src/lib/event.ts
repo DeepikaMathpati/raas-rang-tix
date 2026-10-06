@@ -12,6 +12,8 @@ export const EVENT = {
   phone: "+91 9916977793",
   phoneHref: "tel:+919916977793",
   whatsappHref: "https://wa.me/919916977793",
+  secondaryPhone: "+91 9986297793",
+  secondaryPhoneHref: "tel:+919986297793",
   coPartner: "Blooming Minds International School, Kalaburagi",
   startsAt: "2026-10-16T17:00:00+05:30",
 } as const;
