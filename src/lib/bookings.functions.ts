@@ -648,7 +648,12 @@ const siteSettingsSchema = z.object({
   time: z.string().trim().min(1).max(80),
   venueName: z.string().trim().min(1).max(120),
   venueAddress: z.string().trim().min(1).max(255),
-  mapUrl: z.string().trim().url().max(500).default("https://maps.app.goo.gl/Wcbgg6gzdn8LSUNH7"),
+  mapUrl: z
+    .string()
+    .trim()
+    .url()
+    .max(500)
+    .default("https://www.google.com/maps/place/Royal+palace+Function+hall/@17.2998627,76.8247469,17z/"),
   phone: z.string().trim().min(7).max(30),
   coPartner: z.string().trim().max(160),
   announcement: z.string().trim().max(240),

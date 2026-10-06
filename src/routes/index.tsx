@@ -60,6 +60,11 @@ export const Route = createFileRoute("/")({
           location: {
             "@type": "Place",
             name: EVENT.venueName,
+            geo: {
+              "@type": "GeoCoordinates",
+              latitude: 17.2998627,
+              longitude: 76.8247469,
+            },
             address: {
               "@type": "PostalAddress",
               streetAddress: "Dhanwantri Hospital Road, Kootnoor",
@@ -199,8 +204,9 @@ function Home() {
     };
   }, [getSettings]);
 
-  const mapUrl = site.mapUrl ||
-    "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(site.venueAddress);
+  const mapUrl =
+    site.mapUrl ||
+    "https://www.google.com/maps/place/Royal+palace+Function+hall/@17.2998627,76.8247469,17z/";
   const phoneHref = `tel:${site.phone.replace(/[^0-9+]/g, "")}`;
 
   return (

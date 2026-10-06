@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   time: "5 PM – 11 PM",
   venueName: "Royal Palace Function Hall",
   venueAddress: "Dhanwantri Hospital Road, Kootnoor, Kalaburagi, Karnataka 585102",
-  mapUrl: "https://maps.app.goo.gl/Wcbgg6gzdn8LSUNH7",
+  mapUrl: "https://www.google.com/maps/place/Royal+palace+Function+hall/@17.2998627,76.8247469,17z/",
   phone: "+91 9916977793",
   coPartner: "Blooming Minds International School, Kalaburagi",
   announcement: "",
