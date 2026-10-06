@@ -92,6 +92,9 @@ export function PublicSiteLayout({
             <Link to="/venue" className="hover:text-gold">
               Venue
             </Link>
+            <Link to="/my-tickets" className="font-semibold text-gold-soft hover:text-gold">
+              My Tickets
+            </Link>
           </nav>
           <Link
             to="/book"

@@ -653,7 +653,7 @@ const siteSettingsSchema = z.object({
     .trim()
     .url()
     .max(500)
-    .default("https://www.google.com/maps/place/Royal+palace+Function+hall/@17.2998627,76.8247469,17z/"),
+    .default("https://www.google.com/maps/dir/?api=1&destination=17.2998627%2C76.8247469"),
   phone: z.string().trim().min(7).max(30),
   coPartner: z.string().trim().max(160),
   announcement: z.string().trim().max(240),
