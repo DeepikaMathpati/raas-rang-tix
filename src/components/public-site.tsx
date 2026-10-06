@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Phone } from "lucide-react";
+import { House, MapPin, Music2, Phone, Ticket, TicketCheck } from "lucide-react";
 import { EVENT, HIGHLIGHTS } from "@/lib/event";
 import { getPublicSiteSettings } from "@/lib/bookings.functions";
 import { btnGold } from "@/components/festive";
@@ -79,20 +79,40 @@ export function PublicSiteLayout({
           <Link to="/" className="font-display text-sm tracking-[0.2em] text-gold-gradient">
             RAAS MAHOTSAV
           </Link>
-          <nav className="order-3 flex w-full justify-center gap-5 whitespace-nowrap text-[0.65rem] uppercase tracking-widest text-muted-foreground md:order-none md:w-auto md:gap-6 md:text-sm">
-            <Link to="/" className="hover:text-gold">
+          <nav className="order-3 flex w-full flex-wrap justify-center gap-2 text-[0.65rem] uppercase tracking-widest md:order-none md:w-auto">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 rounded-full border border-gold/50 bg-gold/10 px-2.5 py-1.5 text-gold-soft shadow-glow transition-all hover:-translate-y-0.5 hover:border-gold hover:bg-gold/20 hover:text-gold sm:px-3"
+            >
+              <House className="h-3.5 w-3.5" />
               Home
             </Link>
-            <Link to="/event" className="hover:text-gold">
+            <Link
+              to="/event"
+              className="inline-flex items-center gap-1 rounded-full border border-gold/50 bg-gold/10 px-2.5 py-1.5 text-gold-soft shadow-glow transition-all hover:-translate-y-0.5 hover:border-gold hover:bg-gold/20 hover:text-gold sm:px-3"
+            >
+              <Music2 className="h-3.5 w-3.5" />
               Event
             </Link>
-            <Link to="/passes" className="hover:text-gold">
+            <Link
+              to="/passes"
+              className="inline-flex items-center gap-1 rounded-full border border-gold/50 bg-gold/10 px-2.5 py-1.5 text-gold-soft shadow-glow transition-all hover:-translate-y-0.5 hover:border-gold hover:bg-gold/20 hover:text-gold sm:px-3"
+            >
+              <Ticket className="h-3.5 w-3.5" />
               Passes
             </Link>
-            <Link to="/venue" className="hover:text-gold">
+            <Link
+              to="/venue"
+              className="inline-flex items-center gap-1 rounded-full border border-gold/50 bg-gold/10 px-2.5 py-1.5 text-gold-soft shadow-glow transition-all hover:-translate-y-0.5 hover:border-gold hover:bg-gold/20 hover:text-gold sm:px-3"
+            >
+              <MapPin className="h-3.5 w-3.5" />
               Venue
             </Link>
-            <Link to="/my-tickets" className="font-semibold text-gold-soft hover:text-gold">
+            <Link
+              to="/my-tickets"
+              className="inline-flex items-center gap-1 rounded-full border border-gold/70 bg-gold/20 px-2.5 py-1.5 font-display text-[0.65rem] font-semibold tracking-[0.08em] text-gold shadow-glow transition-all hover:-translate-y-0.5 hover:border-gold hover:bg-gold/30 sm:px-3"
+            >
+              <TicketCheck className="h-3.5 w-3.5 shrink-0" />
               My Tickets
             </Link>
           </nav>
