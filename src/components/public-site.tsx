@@ -116,12 +116,6 @@ export function PublicSiteLayout({
               My Tickets
             </Link>
           </nav>
-          <Link
-            to="/book"
-            className="rounded-full bg-gold-gradient px-4 py-2 font-display text-xs font-semibold uppercase tracking-widest text-primary-foreground shadow-glow"
-          >
-            Book Now
-          </Link>
         </div>
       </header>
       {site.announcement && (
