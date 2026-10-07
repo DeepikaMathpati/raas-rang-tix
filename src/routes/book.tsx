@@ -39,7 +39,7 @@ export const Route = createFileRoute("/book")({
       {
         name: "description",
         content:
-          "Book Individual (₹299) or Squad (₹1,400 for 5) passes for Raas Mahotsav 2026, 16–18 October at Royal Palace Function Hall.",
+          "Book Individual (₹349) or Squad (₹1,500 for 5) passes for Raas Mahotsav 2026, 16–18 October at Royal Palace Function Hall.",
       },
       {
         property: "og:title",
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/book")({
       {
         property: "og:description",
         content:
-          "Individual ₹299 · Squad of 5 ₹1,400. Choose 16, 17 or 18 October.",
+          "Individual ₹349 · Squad of 5 ₹1,500. Choose 16, 17 or 18 October.",
       },
       {
         property: "og:url",

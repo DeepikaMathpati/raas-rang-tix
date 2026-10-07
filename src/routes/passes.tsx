@@ -10,7 +10,7 @@ export const Route = createFileRoute("/passes")({
       { title: "Passes — Raas Mahotsav 2026" },
       {
         name: "description",
-        content: "Book an Individual pass for ₹299 or a Squad pass for five at ₹1,400. Valid for one selected night.",
+        content: "Book an Individual pass for ₹349 or a Squad pass for five at ₹1,500. Valid for one selected night.",
       },
     ],
   }),
