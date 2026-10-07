@@ -3,6 +3,8 @@ import { Camera, Music, ShoppingBag, Sparkles, Utensils } from "lucide-react";
 import bloomingMindsLogo from "@/assets/blooming-minds-international-school.jpeg";
 import parvatiSilksLogo from "@/assets/parvati-silks.jpeg";
 import veerabhadreshwaraEventsLogo from "@/assets/veerabhadreshwara-events.jpeg";
+import royalCafeBossLogo from "@/assets/royal-cafe-boss.png";
+import tengliJewellersLogo from "@/assets/tengli-jewellers.png";
 import { EVENT, HIGHLIGHTS } from "@/lib/event";
 import { btnGold, MandalaBg, SectionTitle } from "@/components/festive";
 import { PublicSiteLayout, usePublicSiteSettings } from "@/components/public-site";
@@ -94,6 +96,8 @@ function EventPage() {
               {[
                 { name: "Parvati Silks", logo: parvatiSilksLogo },
                 { name: "Veerabhadreshwara Events", logo: veerabhadreshwaraEventsLogo },
+                { name: "Tengli Jewellers", logo: tengliJewellersLogo },
+                { name: "Royal Cafe Boss (RCB)", logo: royalCafeBossLogo },
               ].map((sponsor) => (
                 <div
                   key={sponsor.name}

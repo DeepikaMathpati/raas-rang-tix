@@ -224,6 +224,49 @@ function safeEqual(a: string, b: string) {
   }
   return result === 0;
 }
+
+const razorpayOrderResponse = z.object({
+  id: z.string(),
+  amount: z.number().int(),
+  amount_paid: z.number().int(),
+  amount_due: z.number().int(),
+  currency: z.string(),
+  status: z.string(),
+});
+
+const razorpayPaymentResponse = z.object({
+  id: z.string(),
+  order_id: z.string(),
+  amount: z.number().int(),
+  currency: z.string(),
+  status: z.string(),
+  captured: z.boolean(),
+});
+
+async function parseRazorpayResponse<T extends z.ZodType>(
+  response: Response,
+  schema: T,
+): Promise<z.infer<T>> {
+  if (!response.ok) {
+    throw new Error("Payment verification failed.");
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("Payment verification failed.");
+    }
+    throw error;
+  }
+
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) {
+    throw new Error("Payment verification failed.");
+  }
+  return parsed.data;
+}
 // ============================================================
 // VERIFY PAYMENT
 // ============================================================
@@ -264,8 +307,43 @@ export const verifyPayment = createServerFn({
       console.error("Booking lookup failed:", bookingError);
       throw new Error("Booking not found.");
     }
+
     // --------------------------------------------------------
-    // 3-5. Mark payment + booking as paid (first verification only).
+    // 3. Verify payment and order state with Razorpay.
+    // --------------------------------------------------------
+    const authorization = "Basic " + btoa(`${creds.keyId}:${creds.secret}`);
+    const [orderResponse, paymentResponse] = await Promise.all([
+      fetch(`https://api.razorpay.com/v1/orders/${encodeURIComponent(data.orderId)}`, {
+        headers: { Authorization: authorization },
+      }),
+      fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(data.paymentId)}`, {
+        headers: { Authorization: authorization },
+      }),
+    ]);
+    const [order, payment] = await Promise.all([
+      parseRazorpayResponse(orderResponse, razorpayOrderResponse),
+      parseRazorpayResponse(paymentResponse, razorpayPaymentResponse),
+    ]);
+    const expectedAmount = booking.amount_paise;
+    if (
+      order.id !== data.orderId ||
+      order.amount !== expectedAmount ||
+      order.amount_paid !== expectedAmount ||
+      order.amount_due !== 0 ||
+      order.currency !== "INR" ||
+      order.status !== "paid" ||
+      payment.id !== data.paymentId ||
+      payment.order_id !== data.orderId ||
+      payment.amount !== expectedAmount ||
+      payment.currency !== "INR" ||
+      payment.status !== "captured" ||
+      payment.captured !== true
+    ) {
+      throw new Error("Payment verification failed.");
+    }
+
+    // --------------------------------------------------------
+    // 4-6. Mark payment + booking as paid (first verification only).
     // If the booking is already paid we still fall through to make
     // sure its ticket exists, so a failed earlier attempt can be
     // repaired by simply retrying.
@@ -303,7 +381,7 @@ export const verifyPayment = createServerFn({
       justPaid = (updatedRows?.length ?? 0) > 0;
     }
     // --------------------------------------------------------
-    // 6. Create ONE ticket / QR for the booking
+    // 7. Create ONE ticket / QR for the booking
     // --------------------------------------------------------
     const ticket = {
       booking_id: booking.id,
