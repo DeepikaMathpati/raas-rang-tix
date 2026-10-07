@@ -169,6 +169,7 @@ function Home() {
     time: EVENT.time,
     venueName: EVENT.venueName,
     venueAddress: EVENT.venueAddress,
+    mapUrl: EVENT.mapUrl,
     phone: EVENT.phone,
     coPartner: EVENT.coPartner,
     announcement: "",
@@ -198,7 +199,7 @@ function Home() {
     };
   }, [getSettings]);
 
-  const mapUrl =
+  const mapUrl = site.mapUrl ||
     "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(site.venueAddress);
   const phoneHref = `tel:${site.phone.replace(/[^0-9+]/g, "")}`;
 
