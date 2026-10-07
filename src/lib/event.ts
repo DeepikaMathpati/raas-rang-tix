@@ -6,8 +6,12 @@ export const EVENT = {
   time: "5 PM – 11 PM",
   venueName: "Royal Palace Function Hall",
   venueAddress: "Dhanwantri Hospital Road, Kootnoor, Kalaburagi, Karnataka 585102",
+<<<<<<< HEAD
   mapUrl:
     "https://www.google.com/maps/place/Royal+palace+Function+hall/@17.3069646,76.7938525,13.21z/data=!4m10!1m2!2m1!1sRoyal+Palace+Function+Hall,+Dhanwantri+Hospital+Road,+Kootnoor,+Kalaburagi,+Karnataka+585102!3m6!1s0x3bc8bf60164642fd:0xef4fb305b067555!8m2!3d17.2998627!4d76.8247469!15sCltSb3lhbCBQYWxhY2UgRnVuY3Rpb24gSGFsbCwgRGhhbnZhbnRyaSBIb3NwaXRhbCBSb2FkLCBLb3Rub29yLCBLYWxhYnVyYWdpLCBLYXJuYXRha2EgNTg1MTAyWlkiV3JveWFsIHBhbGFjZSBmdW5jdGlvbiBoYWxsIGRoYW52YW50cmkgaG9zcGl0YWwgcm9hZCBrb3Rub29yIGthbGFidXJhZ2kga2FybmF0YWthIDU4NTEwMpIBFmZ1bmN0aW9uX3Jvb21fZmFjaWxpdHngAQA!16s%2Fg%2F11ckqszjsv?entry=ttu&g_ep=EgoyMDI2MTAwNC4wIKXMDSoASAFQAw%3D%3D",
+=======
+  mapUrl: "https://www.google.com/maps/dir/?api=1&destination=17.2998627%2C76.8247469",
+>>>>>>> origin/main
   phone: "+91 9916977793",
   phoneHref: "tel:+919916977793",
   whatsappHref: "https://wa.me/919916977793",

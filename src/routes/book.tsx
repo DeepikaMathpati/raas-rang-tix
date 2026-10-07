@@ -22,6 +22,7 @@ export const Route = createFileRoute("/book")({
   // a malformed link take the booking page down: fall back to "no value".
   validateSearch: z.object({
     pass: z.enum(["individual", "squad"]).optional().catch(undefined),
+    date: z.enum(["2026-10-16", "2026-10-17", "2026-10-18"]).optional().catch(undefined),
     ref: z
       .union([z.string(), z.number(), z.boolean()])
       .transform((value) => String(value))
@@ -85,7 +86,7 @@ function loadRazorpay(): Promise<boolean> {
 }
 
 function BookPage() {
-  const { pass, ref } = Route.useSearch();
+  const { pass, ref, date: initialDate } = Route.useSearch();
   const navigate = useNavigate();
 
   const create = useServerFn(createBooking);
@@ -95,7 +96,7 @@ function BookPage() {
     pass ?? "individual",
   );
 
-  const [date, setDate] = useState<EventDate>("2026-10-16");
+  const [date, setDate] = useState<EventDate>(initialDate ?? "2026-10-16");
 
   const [form, setForm] = useState({
     name: "",
@@ -280,6 +281,20 @@ function BookPage() {
       <p className="text-center font-script text-3xl text-ember">
         {EVENT.tagline}
       </p>
+
+      <ol
+        aria-label="Booking steps"
+        className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-[0.65rem] uppercase tracking-wider text-muted-foreground"
+      >
+        {["Choose your night", "Choose pass", "Enter details", "Payment", "QR Pass"].map(
+          (step, index) => (
+            <li key={step}>
+              {index > 0 && <span className="mr-2 text-gold">→</span>}
+              {step}
+            </li>
+          ),
+        )}
+      </ol>
 
       <Ornament className="my-6" />
 

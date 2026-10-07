@@ -648,6 +648,15 @@ const siteSettingsSchema = z.object({
   time: z.string().trim().min(1).max(80),
   venueName: z.string().trim().min(1).max(120),
   venueAddress: z.string().trim().min(1).max(255),
+<<<<<<< HEAD
+=======
+  mapUrl: z
+    .string()
+    .trim()
+    .url()
+    .max(500)
+    .default("https://www.google.com/maps/dir/?api=1&destination=17.2998627%2C76.8247469"),
+>>>>>>> origin/main
   phone: z.string().trim().min(7).max(30),
   coPartner: z.string().trim().max(160),
   announcement: z.string().trim().max(240),
