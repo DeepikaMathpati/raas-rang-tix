@@ -37,6 +37,7 @@ type SiteSettings = {
   time: string;
   venueName: string;
   venueAddress: string;
+  mapUrl: string;
   phone: string;
   coPartner: string;
   announcement: string;
@@ -49,10 +50,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   time: "5 PM – 11 PM",
   venueName: "Royal Palace Function Hall",
   venueAddress: "Dhanwantri Hospital Road, Kootnoor, Kalaburagi, Karnataka 585102",
-<<<<<<< HEAD
-=======
   mapUrl: "https://www.google.com/maps/dir/?api=1&destination=17.2998627%2C76.8247469",
->>>>>>> origin/main
   phone: "+91 9916977793",
   coPartner: "Blooming Minds International School, Kalaburagi",
   announcement: "",
