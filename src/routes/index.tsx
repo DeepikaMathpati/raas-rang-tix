@@ -51,11 +51,11 @@ export const Route = createFileRoute("/")({
             },
           },
           offers: [
-            { "@type": "Offer", name: "Individual Pass", price: "349", priceCurrency: "INR" },
+            { "@type": "Offer", name: "Individual Pass", price: "299", priceCurrency: "INR" },
             {
               "@type": "Offer",
               name: "Squad Pass (5 people)",
-              price: "1500",
+              price: "1400",
               priceCurrency: "INR",
             },
           ],

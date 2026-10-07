@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const PRICE_PAISE = {
-  individual: 34900,
-  squad: 150000,
+  individual: 29900,
+  squad: 140000,
 } as const;
 const PEOPLE = {
   individual: 1,
