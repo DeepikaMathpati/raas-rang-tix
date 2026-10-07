@@ -76,7 +76,6 @@ values (
     'time', '5 PM – 11 PM',
     'venueName', 'Royal Palace Function Hall',
     'venueAddress', 'Dhanwantri Hospital Road, Kootnoor, Kalaburagi, Karnataka 585102',
-    'mapUrl', 'https://maps.app.goo.gl/Wcbgg6gzdn8LSUNH7',
     'phone', '+91 9916977793',
     'coPartner', 'Blooming Minds International School, Kalaburagi',
     'announcement', '',

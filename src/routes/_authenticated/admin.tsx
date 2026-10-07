@@ -37,7 +37,6 @@ type SiteSettings = {
   time: string;
   venueName: string;
   venueAddress: string;
-  mapUrl: string;
   phone: string;
   coPartner: string;
   announcement: string;
@@ -50,7 +49,6 @@ const DEFAULT_SETTINGS: SiteSettings = {
   time: "5 PM – 11 PM",
   venueName: "Royal Palace Function Hall",
   venueAddress: "Dhanwantri Hospital Road, Kootnoor, Kalaburagi, Karnataka 585102",
-  mapUrl: "https://maps.app.goo.gl/Wcbgg6gzdn8LSUNH7",
   phone: "+91 9916977793",
   coPartner: "Blooming Minds International School, Kalaburagi",
   announcement: "",
@@ -861,7 +859,6 @@ function Admin() {
                     ["time", "Event time"],
                     ["venueName", "Venue name"],
                     ["venueAddress", "Venue address"],
-                      ["mapUrl", "Venue map link"],
                       ["phone", "Contact number"],
                       ["coPartner", "Co-partner"],
                     ] as const
