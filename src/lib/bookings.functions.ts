@@ -5,6 +5,7 @@ const PRICE_PAISE = {
   individual: 34900,
   squad: 150000,
 } as const;
+const REFERRAL_DISCOUNT_PAISE = 5000;
 const PEOPLE = {
   individual: 1,
   squad: 5,
@@ -30,7 +31,7 @@ const bookingInput = z
       .array(z.string().trim().min(2, "Attendee name must contain at least 2 characters.").max(100))
       .min(1)
       .max(5),
-    referralCode: z.string().trim().max(32).optional(),
+    referralCode: z.string().trim().max(24).regex(/^[A-Z0-9-]+$/i).optional(),
   })
   .superRefine((data, ctx) => {
     const expectedCount = data.passType === "individual" ? 1 : 5;
@@ -56,6 +57,41 @@ function razorpayCreds() {
     secret,
   };
 }
+
+async function findActiveReferralCode(code: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: referral, error } = await supabaseAdmin
+    .from("referrals")
+    .select("code")
+    .eq("code", code.toUpperCase())
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Referral lookup failed:", error);
+    throw new Error("Could not validate referral code. Please try again.");
+  }
+  if (!referral) {
+    throw new Error("This referral code is invalid or inactive.");
+  }
+
+  return referral.code;
+}
+
+export const validateReferralCode = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data) =>
+    z
+      .object({
+        code: z.string().trim().min(3).max(24).regex(/^[A-Z0-9-]+$/i),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => ({
+    code: await findActiveReferralCode(data.code),
+  }));
+
 // ============================================================
 // CREATE BOOKING
 // ============================================================
@@ -65,20 +101,15 @@ export const createBooking = createServerFn({
   .inputValidator((data) => bookingInput.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const amount = PRICE_PAISE[data.passType];
     const attendeeCount = PEOPLE[data.passType];
-    let referralCode = data.referralCode ? data.referralCode.toUpperCase() : null;
-    if (referralCode) {
-      const { data: referral } = await supabaseAdmin
-        .from("referrals")
-        .select("code")
-        .eq("code", referralCode)
-        .eq("active", true)
-        .maybeSingle();
-      if (!referral) {
-        referralCode = null;
-      }
-    }
+    const referralCode =
+      data.passType === "individual" && data.referralCode
+        ? await findActiveReferralCode(data.referralCode)
+        : null;
+    const amount =
+      data.passType === "individual" && referralCode
+        ? PRICE_PAISE.individual - REFERRAL_DISCOUNT_PAISE
+        : PRICE_PAISE[data.passType];
     const bookingCode = "RM26-" + randomCode(8);
     // --------------------------------------------------------
     // 1. Create booking
