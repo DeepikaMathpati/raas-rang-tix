@@ -6,9 +6,7 @@ export const EVENT = {
   time: "5 PM – 11 PM",
   venueName: "Royal Palace Function Hall",
   venueAddress: "Dhanwantri Hospital Road, Kootnoor, Kalaburagi, Karnataka 585102",
-  mapUrl:
-    "https://www.google.com/maps/search/?api=1&query=" +
-    encodeURIComponent("Royal Palace Function Hall, Dhanwantri Hospital Road, Kootnoor, Kalaburagi, Karnataka 585102"),
+  mapUrl: "https://maps.app.goo.gl/Wcbgg6gzdn8LSUNH7",
   phone: "+91 9916977793",
   phoneHref: "tel:+919916977793",
   whatsappHref: "https://wa.me/919916977793",
