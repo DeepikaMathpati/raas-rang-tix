@@ -140,35 +140,35 @@ function BookPage() {
   const amountDuePaise = total * 100 - discountAmountPaise;
 
   const applyReferralCode = useCallback(async (value: string) => {
-    const code = value.trim().toUpperCase();
-    const requestId = ++referralRequestId.current;
-    setReferralError("");
+      const code = value.trim().toUpperCase();
+      const requestId = ++referralRequestId.current;
+      setReferralError("");
 
-    if (!code) {
-      setAppliedReferral(null);
-      setReferralError("Enter a referral code to apply a discount.");
-      return;
-    }
-
-    setCheckingReferral(true);
-    try {
-      const result = await lookupReferral({ data: { code } });
-      if (requestId === referralRequestId.current) {
-        setReferralCode(result.code);
-        setAppliedReferral(result);
-      }
-    } catch (error: unknown) {
-      if (requestId === referralRequestId.current) {
+      if (!code) {
         setAppliedReferral(null);
-        setReferralError(
-          error instanceof Error ? error.message : "Could not validate this referral code.",
-        );
+        setReferralError("Enter a referral code to apply a discount.");
+        return;
       }
-    } finally {
-      if (requestId === referralRequestId.current) {
-        setCheckingReferral(false);
+
+      setCheckingReferral(true);
+      try {
+        const result = await lookupReferral({ data: { code } });
+        if (requestId === referralRequestId.current) {
+          setReferralCode(result.code);
+          setAppliedReferral(result);
+        }
+      } catch (error: unknown) {
+        if (requestId === referralRequestId.current) {
+          setAppliedReferral(null);
+          setReferralError(
+            error instanceof Error ? error.message : "Could not validate this referral code.",
+          );
+        }
+      } finally {
+        if (requestId === referralRequestId.current) {
+          setCheckingReferral(false);
+        }
       }
-    }
   }, [lookupReferral]);
 
   useEffect(() => {
@@ -234,7 +234,7 @@ function BookPage() {
 
         navigate({
           to: "/booking/$code",
-          params: { code: res.bookingCode },
+          params: { code: res.accessToken },
         });
 
         return;
@@ -285,7 +285,7 @@ function BookPage() {
 
           navigate({
             to: "/booking/$code",
-            params: { code: res.bookingCode },
+            params: { code: res.accessToken },
           });
         },
 
@@ -295,7 +295,7 @@ function BookPage() {
 
             navigate({
               to: "/booking/$code",
-              params: { code: res.bookingCode },
+              params: { code: res.accessToken },
             });
           },
         },
@@ -404,9 +404,9 @@ function BookPage() {
                 }}
                 aria-pressed={passType === k}
                 className={`rounded-lg border p-4 text-left transition ${
-                  passType === k
-                    ? "border-gold bg-gold/15 shadow-glow"
-                    : "border-border bg-card/60"
+                passType === k
+                  ? "border-gold bg-gold/15 shadow-glow"
+                  : "border-border bg-card/60"
                 }`}
               >
                 <div className="font-display text-sm uppercase tracking-wider text-gold-soft">

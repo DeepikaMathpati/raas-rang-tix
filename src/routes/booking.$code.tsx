@@ -2,14 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { getBooking } from "@/lib/bookings.functions";
+import { getBooking, getCustomerBooking } from "@/lib/bookings.functions";
 import { EVENT, PASSES, dateLabel, inr } from "@/lib/event";
 import { btnOutline, Ornament } from "@/components/festive";
 
 const bookingQuery = (code: string) =>
   queryOptions({
     queryKey: ["booking", code],
-    queryFn: () => getBooking({ data: { code } }),
+    queryFn: () =>
+      /^[a-f0-9]{64}$/.test(code)
+        ? getBooking({ data: { token: code } })
+        : getCustomerBooking({ data: { code } }),
     // While payment is pending, keep checking so the QR pass appears on its
     // own once payment is confirmed (the page promises exactly that).
     refetchInterval: (query) =>
@@ -45,6 +48,10 @@ export const Route = createFileRoute("/booking/$code")({
       {
         name: "robots",
         content: "noindex",
+      },
+      {
+        name: "referrer",
+        content: "no-referrer",
       },
     ],
   }),
@@ -240,16 +247,16 @@ function BookingPage() {
       {paid &&
         !isSquad &&
         b.attendees?.length > 0 && (
-          <div className="mt-8 text-center">
+        <div className="mt-8 text-center">
             <p className="text-sm text-muted-foreground">
               Entry for
             </p>
 
-            <p className="mt-1 font-display text-lg text-gold-soft">
-              {b.attendees[0]?.attendee_name}
-            </p>
-          </div>
-        )}
+          <p className="mt-1 font-display text-lg text-gold-soft">
+            {b.attendees[0]?.attendee_name}
+          </p>
+        </div>
+      )}
 
       {/* ONE QR PER BOOKING */}
       {paid && b.ticket && (

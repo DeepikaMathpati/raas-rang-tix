@@ -69,10 +69,13 @@ export function CinematicHeroEffects() {
     let width = 0;
     let height = 0;
     let frame = 0;
-    let running = true;
+    let inViewport = false;
+    let lastFrame = 0;
     let cycleStarted = performance.now();
     let nextBurst = 0;
     const sparks: Spark[] = [];
+    const frameInterval = () => (compact.matches ? 1000 / 30 : 1000 / 45);
+    const canAnimate = () => inViewport && !document.hidden && !reducedMotion.matches;
 
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();
@@ -119,10 +122,12 @@ export function CinematicHeroEffects() {
     };
 
     const draw = (now: number) => {
-      if (!running) return;
-      ctx.clearRect(0, 0, width, height);
+      frame = 0;
+      if (!canAnimate()) return;
 
-      if (!reducedMotion.matches) {
+      if (now - lastFrame >= frameInterval()) {
+        lastFrame = now;
+        ctx.clearRect(0, 0, width, height);
         const elapsed = now - cycleStarted;
         const burst = BURSTS[nextBurst];
         if (burst && elapsed >= burst.delay) {
@@ -134,49 +139,70 @@ export function CinematicHeroEffects() {
           nextBurst = 0;
         }
         if (Math.random() < (compact.matches ? 0.08 : 0.16)) addEmber();
+
+        ctx.globalCompositeOperation = "lighter";
+        for (let index = sparks.length - 1; index >= 0; index -= 1) {
+          const spark = sparks[index];
+          if (!spark) continue;
+          spark.life += 1;
+          spark.x += spark.vx;
+          spark.y += spark.vy;
+          spark.vy += spark.gravity;
+          spark.vx *= 0.992;
+          const alpha = Math.max(0, 1 - spark.life / spark.maxLife);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = spark.color;
+          ctx.shadowColor = spark.color;
+          ctx.shadowBlur = spark.size * 7;
+          ctx.beginPath();
+          ctx.arc(spark.x, spark.y, spark.size * (0.45 + alpha), 0, Math.PI * 2);
+          ctx.fill();
+          if (spark.life >= spark.maxLife) sparks.splice(index, 1);
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = "source-over";
       }
 
-      ctx.globalCompositeOperation = "lighter";
-      for (let index = sparks.length - 1; index >= 0; index -= 1) {
-        const spark = sparks[index];
-        if (!spark) continue;
-        spark.life += 1;
-        spark.x += spark.vx;
-        spark.y += spark.vy;
-        spark.vy += spark.gravity;
-        spark.vx *= 0.992;
-        const alpha = Math.max(0, 1 - spark.life / spark.maxLife);
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = spark.color;
-        ctx.shadowColor = spark.color;
-        ctx.shadowBlur = spark.size * 7;
-        ctx.beginPath();
-        ctx.arc(spark.x, spark.y, spark.size * (0.45 + alpha), 0, Math.PI * 2);
-        ctx.fill();
-        if (spark.life >= spark.maxLife) sparks.splice(index, 1);
-      }
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
-      ctx.globalCompositeOperation = "source-over";
       frame = requestAnimationFrame(draw);
     };
 
+    const start = () => {
+      if (!frame && canAnimate()) frame = requestAnimationFrame(draw);
+    };
+    const stop = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+    };
+    const updateMotion = () => {
+      if (document.hidden || reducedMotion.matches) {
+        stop();
+        if (reducedMotion.matches) {
+          sparks.length = 0;
+          ctx.clearRect(0, 0, width, height);
+        }
+      } else {
+        start();
+      }
+    };
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry) return;
-      running = entry.isIntersecting;
-      if (running) frame = requestAnimationFrame(draw);
-      else cancelAnimationFrame(frame);
+      inViewport = entry.isIntersecting;
+      if (inViewport) start();
+      else stop();
     });
     resize();
     observer.observe(canvas);
     window.addEventListener("resize", resize);
-    frame = requestAnimationFrame(draw);
+    document.addEventListener("visibilitychange", updateMotion);
+    reducedMotion.addEventListener("change", updateMotion);
 
     return () => {
-      running = false;
-      cancelAnimationFrame(frame);
+      stop();
       observer.disconnect();
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", updateMotion);
+      reducedMotion.removeEventListener("change", updateMotion);
     };
   }, []);
 

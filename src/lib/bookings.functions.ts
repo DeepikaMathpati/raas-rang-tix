@@ -16,6 +16,10 @@ function randomCode(len: number) {
   const bytes = crypto.getRandomValues(new Uint8Array(len));
   return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
 }
+function randomAccessToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 const bookingInput = z
   .object({
     customerName: z.string().trim().min(2, "Name must contain at least 2 characters.").max(100),
@@ -97,6 +101,7 @@ export const createBooking = createServerFn({
     const discountAmount = referralCode ? REFERRAL_DISCOUNT_PAISE : 0;
     const amount = baseAmount - discountAmount;
     const bookingCode = "RM26-" + randomCode(8);
+    const accessToken = randomAccessToken();
     // --------------------------------------------------------
     // 1. Create booking
     // --------------------------------------------------------
@@ -104,6 +109,7 @@ export const createBooking = createServerFn({
       .from("bookings")
       .insert({
         booking_code: bookingCode,
+        access_token: accessToken,
         customer_name: data.customerName,
         mobile: data.mobile,
         email: data.email.toLowerCase(),
@@ -148,6 +154,7 @@ export const createBooking = createServerFn({
     if (!creds) {
       return {
         bookingCode,
+        accessToken,
         baseAmount,
         discountAmount,
         amount,
@@ -179,6 +186,7 @@ export const createBooking = createServerFn({
       console.error("Razorpay order creation failed:", razorpayResponse.status, errorText);
       return {
         bookingCode,
+        accessToken,
         baseAmount,
         discountAmount,
         amount,
@@ -216,6 +224,7 @@ export const createBooking = createServerFn({
     }
     return {
       bookingCode,
+      accessToken,
       baseAmount,
       discountAmount,
       amount,
@@ -596,73 +605,13 @@ export const getBooking = createServerFn({
   .inputValidator((data) =>
     z
       .object({
-        code: z.string().regex(/^RM26-[A-Z0-9]{8}$/),
+        token: z.string().regex(/^[a-f0-9]{64}$/),
       })
       .parse(data),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // --------------------------------------------------------
-    // Booking
-    // --------------------------------------------------------
-    const { data: booking, error } = await supabaseAdmin
-      .from("bookings")
-      .select(
-        `
-        id,
-        booking_code,
-        customer_name,
-        mobile,
-        email,
-        event_date,
-        pass_type,
-        quantity,
-        attendee_count,
-        amount_paise,
-        payment_status
-      `,
-      )
-      .eq("booking_code", data.code)
-      .maybeSingle();
-    if (error || !booking) {
-      return null;
-    }
-    // --------------------------------------------------------
-    // Attendees
-    // --------------------------------------------------------
-    let attendees: {
-      attendee_index: number;
-      attendee_name: string;
-    }[] = [];
-    const { data: attendeeRows } = await supabaseAdmin
-      .from("attendees")
-      .select("attendee_index, attendee_name")
-      .eq("booking_id", booking.id)
-      .order("attendee_index", {
-        ascending: true,
-      });
-    attendees = attendeeRows ?? [];
-    // --------------------------------------------------------
-    // Ticket / QR
-    // --------------------------------------------------------
-    let ticket: {
-      ticket_code: string;
-      checked_in_at: string | null;
-    } | null = null;
-    if (booking.payment_status === "paid") {
-      const { data: ticketRow } = await supabaseAdmin
-        .from("tickets")
-        .select("ticket_code, checked_in_at")
-        .eq("booking_id", booking.id)
-        .maybeSingle();
-      ticket = ticketRow ?? null;
-    }
-    const { id: _id, mobile: _mobile, email: _email, ...publicBooking } = booking;
-    return {
-      ...publicBooking,
-      attendees,
-      ticket,
-    };
+    return loadBooking(supabaseAdmin, { token: data.token });
   });
 
 function getClaimEmail(claims: unknown) {
@@ -673,6 +622,67 @@ function getClaimEmail(claims: unknown) {
   const email = claims.email;
   return typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
 }
+
+type SupabaseAdmin = typeof import("@/integrations/supabase/client.server").supabaseAdmin;
+
+async function loadBooking(
+  supabaseAdmin: SupabaseAdmin,
+  lookup: { token: string } | { code: string; email: string },
+) {
+  const bookingSelection = `
+    id,
+    booking_code,
+    customer_name,
+    mobile,
+    email,
+    event_date,
+    pass_type,
+    quantity,
+    attendee_count,
+    amount_paise,
+    payment_status
+  `;
+  const bookingQuery = supabaseAdmin.from("bookings").select(bookingSelection);
+  const { data: booking, error } =
+    "token" in lookup
+      ? await bookingQuery.eq("access_token", lookup.token).maybeSingle()
+      : await bookingQuery.eq("booking_code", lookup.code).eq("email", lookup.email).maybeSingle();
+  if (error || !booking) return null;
+
+  const [{ data: attendees }, { data: ticket }] = await Promise.all([
+    supabaseAdmin
+      .from("attendees")
+      .select("attendee_index, attendee_name")
+      .eq("booking_id", booking.id)
+      .order("attendee_index", { ascending: true }),
+    booking.payment_status === "paid"
+      ? supabaseAdmin
+          .from("tickets")
+          .select("ticket_code, checked_in_at")
+          .eq("booking_id", booking.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const { id: _id, mobile: _mobile, email: _email, ...publicBooking } = booking;
+  return {
+    ...publicBooking,
+    attendees: attendees ?? [],
+    ticket,
+  };
+}
+
+export const getCustomerBooking = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data) => z.object({ code: z.string().regex(/^RM26-[A-Z0-9]{8}$/) }).parse(data))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const email = getClaimEmail(context.claims);
+    if (!email) throw new Error("No authenticated email address was found for this account.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return loadBooking(supabaseAdmin, { code: data.code, email });
+  });
 
 export const getMyTickets = createServerFn({
   method: "GET",

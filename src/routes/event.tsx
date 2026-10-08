@@ -134,7 +134,7 @@ function EventPage() {
                 className="aspect-video w-full rounded-lg bg-black object-contain"
                 controls
                 playsInline
-                preload="metadata"
+                preload="none"
               >
                 <source src={video.src} />
                 Your browser does not support embedded videos.
