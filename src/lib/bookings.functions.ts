@@ -238,7 +238,7 @@ export const getReferralDiscount = createServerFn({
   method: "GET",
 })
   .inputValidator((data) =>
-    z.object({ code: z.string().trim().min(3).max(24).regex(/^[A-Z0-9-]+$/i) }).parse(data),
+    z.object({ code: z.string().trim().min(3).max(24).regex(/^[A-Z0-9_-]+$/i) }).parse(data),
   )
   .handler(async ({ data }) => {
     const code = await findActiveReferralCode(data.code);
