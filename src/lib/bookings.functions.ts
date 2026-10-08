@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { PASSES } from "@/lib/event";
 const PRICE_PAISE = {
-  individual: 34900,
-  squad: 150000,
+  individual: PASSES.individual.price * 100,
+  squad: PASSES.squad.price * 100,
 } as const;
 const PEOPLE = {
   individual: 1,
@@ -30,7 +31,7 @@ const bookingInput = z
       .array(z.string().trim().min(2, "Attendee name must contain at least 2 characters.").max(100))
       .min(1)
       .max(5),
-    referralCode: z.string().trim().max(32).optional(),
+    referralCode: z.string().trim().max(24).optional(),
   })
   .superRefine((data, ctx) => {
     const expectedCount = data.passType === "individual" ? 1 : 5;
@@ -65,20 +66,28 @@ export const createBooking = createServerFn({
   .inputValidator((data) => bookingInput.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const amount = PRICE_PAISE[data.passType];
+    const baseAmount = PRICE_PAISE[data.passType];
     const attendeeCount = PEOPLE[data.passType];
-    let referralCode = data.referralCode ? data.referralCode.toUpperCase() : null;
+    const referralCode = data.referralCode ? data.referralCode.toUpperCase() : null;
+    let discountPercent = 0;
     if (referralCode) {
-      const { data: referral } = await supabaseAdmin
+      const { data: referral, error: referralError } = await supabaseAdmin
         .from("referrals")
-        .select("code")
+        .select("code, discount_percent")
         .eq("code", referralCode)
         .eq("active", true)
         .maybeSingle();
-      if (!referral) {
-        referralCode = null;
+      if (referralError) {
+        console.error("Referral lookup failed:", referralError);
+        throw new Error("Could not verify this referral code. Please try again.");
       }
+      if (!referral) {
+        throw new Error("This referral code is invalid or no longer active.");
+      }
+      discountPercent = referral.discount_percent;
     }
+    const discountAmount = Math.floor((baseAmount * discountPercent) / 100);
+    const amount = baseAmount - discountAmount;
     const bookingCode = "RM26-" + randomCode(8);
     // --------------------------------------------------------
     // 1. Create booking
@@ -94,7 +103,10 @@ export const createBooking = createServerFn({
         pass_type: data.passType,
         quantity: 1,
         attendee_count: attendeeCount,
+        base_amount_paise: baseAmount,
         amount_paise: amount,
+        discount_amount_paise: discountAmount,
+        referral_discount_percent: discountPercent,
         referral_code: referralCode,
       })
       .select("id")
@@ -127,6 +139,9 @@ export const createBooking = createServerFn({
     if (!creds) {
       return {
         bookingCode,
+        baseAmount,
+        discountAmount,
+        discountPercent,
         amount,
         paymentsConfigured: false as const,
       };
@@ -156,6 +171,9 @@ export const createBooking = createServerFn({
       console.error("Razorpay order creation failed:", razorpayResponse.status, errorText);
       return {
         bookingCode,
+        baseAmount,
+        discountAmount,
+        discountPercent,
         amount,
         paymentsConfigured: false as const,
       };
@@ -191,6 +209,9 @@ export const createBooking = createServerFn({
     }
     return {
       bookingCode,
+      baseAmount,
+      discountAmount,
+      discountPercent,
       amount,
       paymentsConfigured: true as const,
       orderId: order.id,
@@ -792,6 +813,7 @@ export const getAdminData = createServerFn({
       bookingsResult,
       allBookingsResult,
       paidResult,
+      paidPaymentsResult,
       ticketsResult,
       attendeesResult,
       referralsResult,
@@ -817,6 +839,14 @@ export const getAdminData = createServerFn({
       ),
       fetchAllRows((from, to) =>
         supabaseAdmin
+          .from("payments")
+          .select("booking_id, amount_paise")
+          .eq("status", "paid")
+          .order("id", { ascending: true })
+          .range(from, to),
+      ),
+      fetchAllRows((from, to) =>
+        supabaseAdmin
           .from("tickets")
           .select("booking_id, checked_in_at")
           .order("id", { ascending: true })
@@ -834,18 +864,31 @@ export const getAdminData = createServerFn({
       ),
       supabaseAdmin
         .from("referrals")
-        .select("id, code, name, active, created_at")
+        .select("id, code, name, active, discount_percent, created_at")
         .order("created_at", { ascending: false }),
       supabaseAdmin.from("site_settings").select("value").eq("id", "main").maybeSingle(),
     ]);
     if (bookingsResult.error) throw new Error("Could not load bookings.");
     if (attendeesResult.error) throw new Error("Could not load attendees.");
     if (referralsResult.error) throw new Error("Could not load referrals.");
-    if (allBookingsResult.error || paidResult.error || ticketsResult.error) {
+    if (
+      allBookingsResult.error ||
+      paidResult.error ||
+      paidPaymentsResult.error ||
+      ticketsResult.error
+    ) {
       throw new Error("Could not load dashboard statistics.");
     }
     const allBookings = allBookingsResult.data ?? [];
     const paidAll = paidResult.data ?? [];
+    const paidPayments = paidPaymentsResult.data ?? [];
+    const collectedByBooking = new Map<string, number>();
+    for (const payment of paidPayments) {
+      collectedByBooking.set(
+        payment.booking_id,
+        (collectedByBooking.get(payment.booking_id) ?? 0) + payment.amount_paise,
+      );
+    }
     const tickets = ticketsResult.data ?? [];
     const bookingById = new Map(allBookings.map((b) => [b.id, b]));
     const checkedInMap = new Map(
@@ -861,7 +904,7 @@ export const getAdminData = createServerFn({
         checkedInBookings += 1;
       }
     }
-    const revenue = paidAll.reduce((sum, booking) => sum + booking.amount_paise, 0) / 100;
+    const revenue = paidPayments.reduce((sum, payment) => sum + payment.amount_paise, 0) / 100;
     const attendees = paidAll.reduce((sum, booking) => sum + booking.attendee_count, 0);
     const byDate: Record<string, number> = {};
     for (const booking of paidAll) {
@@ -884,7 +927,7 @@ export const getAdminData = createServerFn({
       };
       current.bookings += 1;
       current.attendees += booking.attendee_count;
-      current.revenue += booking.amount_paise / 100;
+      current.revenue += (collectedByBooking.get(booking.id) ?? 0) / 100;
       referralStats.set(booking.referral_code, current);
     }
     const referrals = (referralsResult.data ?? []).map((referral) => ({
@@ -898,10 +941,14 @@ export const getAdminData = createServerFn({
       ...row,
       checked_in_at: checkedInMap.get(row.booking_id) ?? null,
     }));
+    const bookingsWithCollectedAmount = (bookingsResult.data ?? []).map((booking) => ({
+      ...booking,
+      collected_amount_paise: collectedByBooking.get(booking.id) ?? null,
+    }));
     return {
       authorized: true as const,
       role: isAdmin ? ("admin" as const) : ("staff" as const),
-      bookings: bookingsResult.data ?? [],
+      bookings: bookingsWithCollectedAmount,
       attendees: attendeesWithCheckin,
       referrals,
       settings: settingsResult.data?.value ?? null,
@@ -935,6 +982,7 @@ export const createReferral = createServerFn({
           .min(3)
           .max(24)
           .regex(/^[A-Z0-9-]+$/i),
+        discountPercent: z.number().int().min(0).max(99),
       })
       .parse(data),
   )
@@ -946,10 +994,35 @@ export const createReferral = createServerFn({
       name: data.name.trim(),
       code: data.code.trim().toUpperCase(),
       active: true,
+      discount_percent: data.discountPercent,
     });
     if (error) {
       if (error.code === "23505") throw new Error("That referral code already exists.");
       throw new Error("Could not create referral.");
+    }
+    return { ok: true as const };
+  });
+export const setReferralDiscount = createServerFn({
+  method: "POST",
+})
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({
+      id: z.string().uuid(),
+      discountPercent: z.number().int().min(0).max(99),
+    }).parse(data),
+  )
+  .handler(async ({ context, data }) => {
+    const { isAdmin } = await requireAdminRole(context.userId);
+    if (!isAdmin) throw new Error("Only admins can manage referral discounts.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("referrals")
+      .update({ discount_percent: data.discountPercent })
+      .eq("id", data.id);
+    if (error) {
+      console.error("Referral discount update failed:", error);
+      throw new Error("Could not update referral discount.");
     }
     return { ok: true as const };
   });

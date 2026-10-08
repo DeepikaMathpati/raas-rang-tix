@@ -114,6 +114,12 @@ function BookPage() {
   ]);
 
   const [busy, setBusy] = useState(false);
+  const [appliedPrice, setAppliedPrice] = useState<{
+    baseAmount: number;
+    discountAmount: number;
+    discountPercent: number;
+    amount: number;
+  } | null>(null);
 
   const p = PASSES[passType];
 
@@ -172,6 +178,12 @@ function BookPage() {
           referralCode: ref,
         },
       });
+      setAppliedPrice({
+        baseAmount: res.baseAmount,
+        discountAmount: res.discountAmount,
+        discountPercent: res.discountPercent,
+        amount: res.amount,
+      });
 
       if (!res.paymentsConfigured) {
         toast.message(
@@ -198,7 +210,7 @@ function BookPage() {
         amount: res.amount,
         currency: "INR",
         name: "Raas Mahotsav 2026",
-        description: `${p.label} · ${date}`,
+        description: `${p.label} · ${date}${res.discountPercent ? ` · ${res.discountPercent}% referral discount` : ""}`,
         prefill: {
           name: primaryName,
           email: form.email,
@@ -345,7 +357,10 @@ function BookPage() {
               <button
                 type="button"
                 key={k}
-                onClick={() => setPassType(k)}
+                onClick={() => {
+                  setPassType(k);
+                  setAppliedPrice(null);
+                }}
                 aria-pressed={passType === k}
                 className={`rounded-lg border p-4 text-left transition ${
                   passType === k
@@ -473,13 +488,24 @@ function BookPage() {
           <div className="mx-auto flex max-w-xl items-center justify-between gap-4">
             <div>
               <div className="font-display text-2xl text-gold-gradient">
-                {inr(total)}
+                {inr((appliedPrice?.amount ?? total))}
               </div>
 
               <div className="text-sm text-muted-foreground">
                 {people} {people === 1 ? "person" : "people"} ·{" "}
                 {EVENT_DATES.find((d) => d.value === date)?.short}
               </div>
+              {ref && appliedPrice?.discountPercent ? (
+                <div className="text-xs text-success">
+                  List {inr(appliedPrice.baseAmount / 100)} · {ref.toUpperCase()}{" "}
+                  {appliedPrice.discountPercent}% off
+                  {" "}({inr(appliedPrice.discountAmount / 100)} saved)
+                </div>
+              ) : ref ? (
+                <div className="text-xs text-muted-foreground">
+                  Referral discount will be confirmed at checkout.
+                </div>
+              ) : null}
             </div>
 
             <button

@@ -10,6 +10,7 @@ import {
   checkInTicket,
   createReferral,
   getAdminData,
+  setReferralDiscount,
   setReferralActive,
   updateSiteSettings,
 } from "@/lib/bookings.functions";
@@ -92,6 +93,7 @@ function Admin() {
   const fetchData = useServerFn(getAdminData);
   const checkIn = useServerFn(checkInTicket);
   const createReferralFn = useServerFn(createReferral);
+  const setReferralDiscountFn = useServerFn(setReferralDiscount);
   const setReferralActiveFn = useServerFn(setReferralActive);
   const updateSiteSettingsFn = useServerFn(updateSiteSettings);
 
@@ -111,6 +113,9 @@ function Admin() {
 
   const [referralName, setReferralName] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const [referralDiscountPercent, setReferralDiscountPercent] = useState("0");
+  const [referralDiscounts, setReferralDiscounts] = useState<Record<string, string>>({});
+  const [savingReferralDiscountId, setSavingReferralDiscountId] = useState<string | null>(null);
   const [savingReferral, setSavingReferral] = useState(false);
 
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
@@ -243,6 +248,13 @@ function Admin() {
       if (requestId !== loadRequestRef.current) return;
       hasDataRef.current = true;
       setData(result);
+      if (result?.authorized) {
+        setReferralDiscounts(
+          Object.fromEntries(
+            result.referrals.map((referral) => [referral.id, String(referral.discount_percent)]),
+          ),
+        );
+      }
       // Only seed the settings form once, so a reload cannot wipe unsaved edits.
       if (result?.settings && !settingsLoadedRef.current) {
         settingsLoadedRef.current = true;
@@ -314,16 +326,33 @@ function Admin() {
         data: {
           name: referralName.trim(),
           code: referralCode.trim().toUpperCase(),
+          discountPercent: Number(referralDiscountPercent),
         },
       });
       toast.success("Referral created.");
       setReferralName("");
       setReferralCode("");
+      setReferralDiscountPercent("0");
       await loadAdminData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create referral.");
     } finally {
       setSavingReferral(false);
+    }
+  }
+
+  async function saveReferralDiscount(id: string) {
+    setSavingReferralDiscountId(id);
+    try {
+      await setReferralDiscountFn({
+        data: { id, discountPercent: Number(referralDiscounts[id]) },
+      });
+      toast.success("Referral discount saved.");
+      await loadAdminData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update referral discount.");
+    } finally {
+      setSavingReferralDiscountId(null);
     }
   }
 
@@ -566,7 +595,7 @@ function Admin() {
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[950px] text-left text-sm">
+              <table className="w-full min-w-[1100px] text-left text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
                     {[
@@ -576,7 +605,7 @@ function Admin() {
                       "Date",
                       "Pass",
                       "People",
-                      "Amount",
+                      "Charged / due",
                       "Referral",
                       "Status",
                     ].map((heading) => (
@@ -600,7 +629,22 @@ function Admin() {
                         {PASSES[b.pass_type as "individual" | "squad"]?.label ?? b.pass_type}
                       </td>
                       <td className="px-3 py-3">{b.attendee_count}</td>
-                      <td className="px-3 py-3">{inr(b.amount_paise / 100)}</td>
+                      <td className="px-3 py-3">
+                        <div>
+                          {b.payment_status === "paid"
+                            ? b.collected_amount_paise === null
+                              ? "Paid · amount unavailable"
+                              : inr(b.collected_amount_paise / 100)
+                            : inr(b.amount_paise / 100)}
+                        </div>
+                        {b.discount_amount_paise > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            List {inr(b.base_amount_paise / 100)} ·{" "}
+                            {b.referral_discount_percent}% off · discount{" "}
+                            {inr(b.discount_amount_paise / 100)}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-3 font-mono">{b.referral_code ?? "—"}</td>
                       <td className="px-3 py-3">{b.payment_status}</td>
                     </tr>
@@ -702,7 +746,7 @@ function Admin() {
                 <div className="mt-1 text-sm text-muted-foreground">
                   Give a person or group a code they can share.
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
+                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px_140px_auto]">
                   <input
                     required
                     value={referralName}
@@ -719,6 +763,20 @@ function Admin() {
                     placeholder="Code (e.g. PRIYA)"
                     className={inputCls}
                   />
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={99}
+                      step={1}
+                      required
+                      value={referralDiscountPercent}
+                      onChange={(e) => setReferralDiscountPercent(e.target.value)}
+                      aria-label="Discount percentage"
+                      className={inputCls}
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </label>
                   <button type="submit" disabled={savingReferral} className={btnGold}>
                     {savingReferral ? "Saving…" : "Create"}
                   </button>
@@ -727,16 +785,23 @@ function Admin() {
             )}
 
             <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[900px] text-left text-sm">
+              <table className="w-full min-w-[1050px] text-left text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
-                    {["Referral", "Code", "Bookings", "Attendees", "Revenue", "Link", "Active"].map(
-                      (h) => (
-                        <th key={h} className="px-3 py-3">
-                          {h}
-                        </th>
-                      ),
-                    )}
+                    {[
+                      "Referral",
+                      "Code",
+                      "Discount",
+                      "Bookings",
+                      "Attendees",
+                      "Revenue",
+                      "Link",
+                      "Active",
+                    ].map((h) => (
+                      <th key={h} className="px-3 py-3">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -744,6 +809,38 @@ function Admin() {
                     <tr key={r.id} className="border-t border-border">
                       <td className="px-3 py-3">{r.name}</td>
                       <td className="px-3 py-3 font-mono">{r.code}</td>
+                      <td className="px-3 py-3">
+                        {isAdmin ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={0}
+                              max={99}
+                              step={1}
+                              aria-label={`${r.code} discount percentage`}
+                              value={referralDiscounts[r.id] ?? String(r.discount_percent)}
+                              onChange={(e) =>
+                                setReferralDiscounts((current) => ({
+                                  ...current,
+                                  [r.id]: e.target.value,
+                                }))
+                              }
+                              className={`${inputCls} w-20`}
+                            />
+                            <span>%</span>
+                            <button
+                              type="button"
+                              className={btnOutline}
+                              disabled={savingReferralDiscountId === r.id}
+                              onClick={() => void saveReferralDiscount(r.id)}
+                            >
+                              {savingReferralDiscountId === r.id ? "Saving…" : "Save"}
+                            </button>
+                          </div>
+                        ) : (
+                          `${r.discount_percent}%`
+                        )}
+                      </td>
                       <td className="px-3 py-3">{r.bookings}</td>
                       <td className="px-3 py-3">{r.attendees}</td>
                       <td className="px-3 py-3">{inr(r.revenue)}</td>
@@ -773,7 +870,7 @@ function Admin() {
                   ))}
                   {referrals.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
                         No referrals yet.
                       </td>
                     </tr>
