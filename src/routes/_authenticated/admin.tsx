@@ -3,12 +3,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
 import { toast } from "sonner";
-import { Copy, ExternalLink, LogOut, RefreshCw } from "lucide-react";
+import { Copy, ExternalLink, LogOut, RefreshCw, Trash2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
   checkInTicket,
   createReferral,
+  deletePendingBooking,
   getAdminData,
   setReferralActive,
   updateSiteSettings,
@@ -18,6 +19,16 @@ import { btnGold, btnOutline, inputCls } from "@/components/festive";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -91,6 +102,7 @@ function Admin() {
   const navigate = useNavigate();
   const fetchData = useServerFn(getAdminData);
   const checkIn = useServerFn(checkInTicket);
+  const deletePendingBookingFn = useServerFn(deletePendingBooking);
   const createReferralFn = useServerFn(createReferral);
   const setReferralActiveFn = useServerFn(setReferralActive);
   const updateSiteSettingsFn = useServerFn(updateSiteSettings);
@@ -100,6 +112,13 @@ function Admin() {
   const [status, setStatus] = useState("all");
   const [attendeeQ, setAttendeeQ] = useState("");
   const [attendeeDate, setAttendeeDate] = useState("all");
+  const [attendeePaymentStatus, setAttendeePaymentStatus] = useState("all");
+  const [pendingBookingToDelete, setPendingBookingToDelete] = useState<{
+    id: string;
+    code: string;
+    attendeeCount: number;
+  } | null>(null);
+  const [deletingBooking, setDeletingBooking] = useState(false);
   const [code, setCode] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
@@ -306,6 +325,21 @@ function Admin() {
     }
   }
 
+  async function deleteBooking() {
+    if (!pendingBookingToDelete) return;
+    setDeletingBooking(true);
+    try {
+      await deletePendingBookingFn({ data: { bookingId: pendingBookingToDelete.id } });
+      toast.success(`Pending booking ${pendingBookingToDelete.code} deleted.`);
+      setPendingBookingToDelete(null);
+      await loadAdminData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete the pending booking.");
+    } finally {
+      setDeletingBooking(false);
+    }
+  }
+
   async function addReferral(e: React.FormEvent) {
     e.preventDefault();
     setSavingReferral(true);
@@ -387,9 +421,11 @@ function Admin() {
             .includes(needle),
         );
       const matchesDate = attendeeDate === "all" || booking.event_date === attendeeDate;
-      return matchesText && matchesDate;
+      const matchesPaymentStatus =
+        attendeePaymentStatus === "all" || booking.payment_status === attendeePaymentStatus;
+      return matchesText && matchesDate && matchesPaymentStatus;
     });
-  }, [data?.attendees, attendeeDate, attendeeQ]);
+  }, [data?.attendees, attendeeDate, attendeePaymentStatus, attendeeQ]);
 
   if (loading) {
     return (
@@ -633,12 +669,12 @@ function Admin() {
           </TabsContent>
 
           <TabsContent value="attendees" className="mt-6 space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <input
                 value={attendeeQ}
                 onChange={(e) => setAttendeeQ(e.target.value)}
                 placeholder="Search attendee, customer, mobile, email or booking"
-                className={inputCls}
+                className={`${inputCls} sm:min-w-72 sm:flex-1`}
               />
               <select
                 value={attendeeDate}
@@ -652,9 +688,25 @@ function Admin() {
                   </option>
                 ))}
               </select>
+              <select
+                value={attendeePaymentStatus}
+                onChange={(e) => setAttendeePaymentStatus(e.target.value)}
+                className={`${inputCls} sm:w-48`}
+                aria-label="Filter attendees by payment status"
+              >
+                {["all", "pending", "paid", "failed", "refunded"].map((item) => (
+                  <option key={item} value={item}>
+                    {item === "all" ? "All payment statuses" : item}
+                  </option>
+                ))}
+              </select>
             </div>
+            <p className="text-sm text-muted-foreground">
+              Showing {filteredAttendees.length} attendee
+              {filteredAttendees.length === 1 ? "" : "s"}.
+            </p>
             <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[1100px] text-left text-sm">
+              <table className="w-full min-w-[1160px] text-left text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
                     {[
@@ -666,6 +718,7 @@ function Admin() {
                       "Pass",
                       "Payment",
                       "Check-in",
+                      ...(isAdmin ? ["Actions"] : []),
                     ].map((h) => (
                       <th key={h} className="px-3 py-3">
                         {h}
@@ -695,12 +748,36 @@ function Admin() {
                             ? new Date(row.checked_in_at).toLocaleString()
                             : "Not yet"}
                         </td>
+                        {isAdmin && (
+                          <td className="px-3 py-3">
+                            {b.payment_status === "pending" && b.id && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPendingBookingToDelete({
+                                    id: b.id,
+                                    code: b.booking_code ?? "this booking",
+                                    attendeeCount: b.attendee_count ?? 1,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 rounded-md border border-red-500/40 px-2 py-1 text-xs text-red-400 transition-colors hover:bg-red-500/10"
+                                aria-label={`Delete pending booking ${b.booking_code ?? ""}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete booking
+                              </button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
                   {filteredAttendees.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <td
+                        colSpan={isAdmin ? 9 : 8}
+                        className="p-8 text-center text-muted-foreground"
+                      >
                         No attendees found.
                       </td>
                     </tr>
@@ -952,6 +1029,37 @@ function Admin() {
           </TabsContent>
         </Tabs>
       </div>
+      <AlertDialog
+        open={pendingBookingToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deletingBooking) setPendingBookingToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete pending booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes booking {pendingBookingToDelete?.code} and its{" "}
+              {pendingBookingToDelete?.attendeeCount ?? 1} attendee
+              {(pendingBookingToDelete?.attendeeCount ?? 1) === 1 ? "" : "s"}, tickets, and
+              payment records. This can only be done while the booking remains pending.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingBooking}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void deleteBooking();
+              }}
+              disabled={deletingBooking}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingBooking ? "Deleting…" : "Delete booking"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
