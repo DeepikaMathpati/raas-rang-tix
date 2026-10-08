@@ -1050,7 +1050,7 @@ export const createReferral = createServerFn({
           .trim()
           .min(3)
           .max(24)
-          .regex(/^[A-Z0-9-]+$/i),
+          .regex(/^[A-Z0-9-_]+$/i),
       })
       .parse(data),
   )
