@@ -122,7 +122,8 @@ function BookPage() {
   const [referralCode, setReferralCode] = useState(ref ?? "");
   const [appliedReferral, setAppliedReferral] = useState<{
     code: string;
-    discountPercent: number;
+    individualDiscountPaise: number;
+    squadDiscountPaise: number;
   } | null>(null);
   const [checkingReferral, setCheckingReferral] = useState(false);
   const [referralError, setReferralError] = useState("");
@@ -133,9 +134,10 @@ function BookPage() {
   // One booking always represents exactly one pass.
   const total = p.price;
   const people = p.people;
-  const discountAmountPaise = Math.floor(
-    total * 100 * (appliedReferral?.discountPercent ?? 0) / 100,
-  );
+  const discountAmountPaise =
+    passType === "individual"
+      ? (appliedReferral?.individualDiscountPaise ?? 0)
+      : (appliedReferral?.squadDiscountPaise ?? 0);
   const amountDuePaise = total * 100 - discountAmountPaise;
 
   const applyReferralCode = useCallback(async (value: string) => {
@@ -251,7 +253,7 @@ function BookPage() {
         amount: res.amount,
         currency: "INR",
         name: "Raas Mahotsav 2026",
-        description: `${p.label} · ${date}${res.discountPercent ? ` · ${res.discountPercent}% referral discount` : ""}`,
+        description: `${p.label} · ${date}${res.discountAmount ? ` · ${inr(res.discountAmount / 100)} referral discount` : ""}`,
         prefill: {
           name: primaryName,
           email: form.email,
@@ -530,7 +532,7 @@ function BookPage() {
             <p role="alert" className="text-sm text-destructive">{referralError}</p>
           ) : appliedReferral ? (
             <p className="text-sm text-success">
-              {appliedReferral.code} applied — {appliedReferral.discountPercent}% off.
+              {appliedReferral.code} applied — {inr(discountAmountPaise / 100)} off this pass.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
@@ -583,8 +585,7 @@ function BookPage() {
               {appliedReferral ? (
                 <div className="text-xs text-success">
                   List {inr(total)} · {appliedReferral.code}{" "}
-                  {appliedReferral.discountPercent}% off
-                  {" "}({inr(discountAmountPaise / 100)} saved)
+                  saves {inr(discountAmountPaise / 100)}
                 </div>
               ) : null}
             </div>

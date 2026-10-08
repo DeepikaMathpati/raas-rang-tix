@@ -113,8 +113,11 @@ function Admin() {
 
   const [referralName, setReferralName] = useState("");
   const [referralCode, setReferralCode] = useState("");
-  const [referralDiscountPercent, setReferralDiscountPercent] = useState("0");
-  const [referralDiscounts, setReferralDiscounts] = useState<Record<string, string>>({});
+  const [referralIndividualDiscount, setReferralIndividualDiscount] = useState("0");
+  const [referralSquadDiscount, setReferralSquadDiscount] = useState("0");
+  const [referralDiscounts, setReferralDiscounts] = useState<
+    Record<string, { individual: string; squad: string }>
+  >({});
   const [savingReferralDiscountId, setSavingReferralDiscountId] = useState<string | null>(null);
   const [savingReferral, setSavingReferral] = useState(false);
 
@@ -126,6 +129,15 @@ function Admin() {
   const scannerRef = useRef<QrScanner | null>(null);
   const cameraRequestRef = useRef(0);
   const invalidQrRef = useRef<string | null>(null);
+
+  function discountToPaise(value: string, maximum: number): number {
+    const amount = Number(value);
+    const paise = Math.round(amount * 100);
+    if (!value.trim() || !Number.isFinite(amount) || amount < 0 || paise > maximum) {
+      throw new Error(`Enter a discount between ₹0 and ₹${(maximum / 100).toFixed(2)}.`);
+    }
+    return paise;
+  }
 
   const stopCamera = useCallback(() => {
     cameraRequestRef.current += 1;
@@ -250,9 +262,13 @@ function Admin() {
       setData(result);
       if (result?.authorized) {
         setReferralDiscounts(
-          Object.fromEntries(
-            result.referrals.map((referral) => [referral.id, String(referral.discount_percent)]),
-          ),
+          Object.fromEntries(result.referrals.map((referral) => [
+            referral.id,
+            {
+              individual: (referral.discount_individual_paise / 100).toFixed(2),
+              squad: (referral.discount_squad_paise / 100).toFixed(2),
+            },
+          ])),
         );
       }
       // Only seed the settings form once, so a reload cannot wipe unsaved edits.
@@ -326,13 +342,15 @@ function Admin() {
         data: {
           name: referralName.trim(),
           code: referralCode.trim().toUpperCase(),
-          discountPercent: Number(referralDiscountPercent),
+          individualDiscountPaise: discountToPaise(referralIndividualDiscount, 34899),
+          squadDiscountPaise: discountToPaise(referralSquadDiscount, 149999),
         },
       });
       toast.success("Referral created.");
       setReferralName("");
       setReferralCode("");
-      setReferralDiscountPercent("0");
+      setReferralIndividualDiscount("0");
+      setReferralSquadDiscount("0");
       await loadAdminData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create referral.");
@@ -345,7 +363,11 @@ function Admin() {
     setSavingReferralDiscountId(id);
     try {
       await setReferralDiscountFn({
-        data: { id, discountPercent: Number(referralDiscounts[id]) },
+        data: {
+          id,
+          individualDiscountPaise: discountToPaise(referralDiscounts[id]?.individual ?? "", 34899),
+          squadDiscountPaise: discountToPaise(referralDiscounts[id]?.squad ?? "", 149999),
+        },
       });
       toast.success("Referral discount saved.");
       await loadAdminData();
@@ -640,7 +662,7 @@ function Admin() {
                         {b.discount_amount_paise > 0 && (
                           <div className="text-xs text-muted-foreground">
                             List {inr(b.base_amount_paise / 100)} ·{" "}
-                            {b.referral_discount_percent}% off · discount{" "}
+                            Referral discount{" "}
                             {inr(b.discount_amount_paise / 100)}
                           </div>
                         )}
@@ -746,7 +768,7 @@ function Admin() {
                 <div className="mt-1 text-sm text-muted-foreground">
                   Give a person or group a code they can share.
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px_140px_auto]">
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_180px_180px_auto]">
                   <input
                     required
                     value={referralName}
@@ -763,19 +785,33 @@ function Admin() {
                     placeholder="Code (e.g. PRIYA)"
                     className={inputCls}
                   />
-                  <label className="flex items-center gap-2">
+                  <label className="space-y-1 text-sm text-muted-foreground">
+                    <span>Individual discount (max ₹348.99)</span>
                     <input
                       type="number"
                       min={0}
-                      max={99}
-                      step={1}
+                      max={348.99}
+                      step={0.01}
                       required
-                      value={referralDiscountPercent}
-                      onChange={(e) => setReferralDiscountPercent(e.target.value)}
-                      aria-label="Discount percentage"
+                      value={referralIndividualDiscount}
+                      onChange={(e) => setReferralIndividualDiscount(e.target.value)}
+                      aria-label="Individual pass discount in rupees"
                       className={inputCls}
                     />
-                    <span className="text-sm text-muted-foreground">%</span>
+                  </label>
+                  <label className="space-y-1 text-sm text-muted-foreground">
+                    <span>Squad discount (max ₹1,499.99)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={1499.99}
+                      step={0.01}
+                      required
+                      value={referralSquadDiscount}
+                      onChange={(e) => setReferralSquadDiscount(e.target.value)}
+                      aria-label="Squad pass discount in rupees"
+                      className={inputCls}
+                    />
                   </label>
                   <button type="submit" disabled={savingReferral} className={btnGold}>
                     {savingReferral ? "Saving…" : "Create"}
@@ -791,7 +827,7 @@ function Admin() {
                     {[
                       "Referral",
                       "Code",
-                      "Discount",
+                      "Discounts (Individual / Squad)",
                       "Bookings",
                       "Attendees",
                       "Revenue",
@@ -812,22 +848,48 @@ function Admin() {
                       <td className="px-3 py-3">
                         {isAdmin ? (
                           <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min={0}
-                              max={99}
-                              step={1}
-                              aria-label={`${r.code} discount percentage`}
-                              value={referralDiscounts[r.id] ?? String(r.discount_percent)}
-                              onChange={(e) =>
-                                setReferralDiscounts((current) => ({
-                                  ...current,
-                                  [r.id]: e.target.value,
-                                }))
-                              }
-                              className={`${inputCls} w-20`}
-                            />
-                            <span>%</span>
+                            <label className="flex items-center gap-1">
+                              <span className="text-xs">I ₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={348.99}
+                                step={0.01}
+                                aria-label={`${r.code} individual discount in rupees`}
+                                value={referralDiscounts[r.id]?.individual ?? ""}
+                                onChange={(e) =>
+                                  setReferralDiscounts((current) => ({
+                                    ...current,
+                                    [r.id]: {
+                                      individual: e.target.value,
+                                      squad: current[r.id]?.squad ?? "",
+                                    },
+                                  }))
+                                }
+                                className={`${inputCls} w-24`}
+                              />
+                            </label>
+                            <label className="flex items-center gap-1">
+                              <span className="text-xs">S ₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={1499.99}
+                                step={0.01}
+                                aria-label={`${r.code} squad discount in rupees`}
+                                value={referralDiscounts[r.id]?.squad ?? ""}
+                                onChange={(e) =>
+                                  setReferralDiscounts((current) => ({
+                                    ...current,
+                                    [r.id]: {
+                                      individual: current[r.id]?.individual ?? "",
+                                      squad: e.target.value,
+                                    },
+                                  }))
+                                }
+                                className={`${inputCls} w-24`}
+                              />
+                            </label>
                             <button
                               type="button"
                               className={btnOutline}
@@ -838,7 +900,7 @@ function Admin() {
                             </button>
                           </div>
                         ) : (
-                          `${r.discount_percent}%`
+                          `${inr(r.discount_individual_paise / 100)} / ${inr(r.discount_squad_paise / 100)}`
                         )}
                       </td>
                       <td className="px-3 py-3">{r.bookings}</td>

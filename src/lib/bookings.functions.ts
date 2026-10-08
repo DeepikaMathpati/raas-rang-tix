@@ -69,11 +69,11 @@ export const createBooking = createServerFn({
     const baseAmount = PRICE_PAISE[data.passType];
     const attendeeCount = PEOPLE[data.passType];
     const referralCode = data.referralCode ? data.referralCode.toUpperCase() : null;
-    let discountPercent = 0;
+    let discountAmount = 0;
     if (referralCode) {
       const { data: referral, error: referralError } = await supabaseAdmin
         .from("referrals")
-        .select("code, discount_percent")
+        .select("code, discount_individual_paise, discount_squad_paise")
         .eq("code", referralCode)
         .eq("active", true)
         .maybeSingle();
@@ -84,9 +84,14 @@ export const createBooking = createServerFn({
       if (!referral) {
         throw new Error("This referral code is invalid or no longer active.");
       }
-      discountPercent = referral.discount_percent;
+      discountAmount =
+        data.passType === "individual"
+          ? referral.discount_individual_paise
+          : referral.discount_squad_paise;
     }
-    const discountAmount = Math.floor((baseAmount * discountPercent) / 100);
+    if (discountAmount >= baseAmount) {
+      throw new Error("This referral discount is not valid for the selected pass.");
+    }
     const amount = baseAmount - discountAmount;
     const bookingCode = "RM26-" + randomCode(8);
     // --------------------------------------------------------
@@ -106,7 +111,8 @@ export const createBooking = createServerFn({
         base_amount_paise: baseAmount,
         amount_paise: amount,
         discount_amount_paise: discountAmount,
-        referral_discount_percent: discountPercent,
+        referral_discount_percent: 0,
+        referral_discount_paise: discountAmount,
         referral_code: referralCode,
       })
       .select("id")
@@ -141,7 +147,6 @@ export const createBooking = createServerFn({
         bookingCode,
         baseAmount,
         discountAmount,
-        discountPercent,
         amount,
         paymentsConfigured: false as const,
       };
@@ -173,7 +178,6 @@ export const createBooking = createServerFn({
         bookingCode,
         baseAmount,
         discountAmount,
-        discountPercent,
         amount,
         paymentsConfigured: false as const,
       };
@@ -211,7 +215,6 @@ export const createBooking = createServerFn({
       bookingCode,
       baseAmount,
       discountAmount,
-      discountPercent,
       amount,
       paymentsConfigured: true as const,
       orderId: order.id,
@@ -228,7 +231,7 @@ export const getReferralDiscount = createServerFn({
     const code = data.code.toUpperCase();
     const { data: referral, error } = await supabaseAdmin
       .from("referrals")
-      .select("code, discount_percent")
+      .select("code, discount_individual_paise, discount_squad_paise")
       .eq("code", code)
       .eq("active", true)
       .maybeSingle();
@@ -243,7 +246,8 @@ export const getReferralDiscount = createServerFn({
 
     return {
       code: referral.code,
-      discountPercent: referral.discount_percent,
+      individualDiscountPaise: referral.discount_individual_paise,
+      squadDiscountPaise: referral.discount_squad_paise,
     };
   });
 
@@ -893,7 +897,9 @@ export const getAdminData = createServerFn({
       ),
       supabaseAdmin
         .from("referrals")
-        .select("id, code, name, active, discount_percent, created_at")
+        .select(
+          "id, code, name, active, discount_percent, discount_individual_paise, discount_squad_paise, created_at",
+        )
         .order("created_at", { ascending: false }),
       supabaseAdmin.from("site_settings").select("value").eq("id", "main").maybeSingle(),
     ]);
@@ -1011,7 +1017,8 @@ export const createReferral = createServerFn({
           .min(3)
           .max(24)
           .regex(/^[A-Z0-9-]+$/i),
-        discountPercent: z.number().int().min(0).max(99),
+        individualDiscountPaise: z.number().int().min(0).max(34899),
+        squadDiscountPaise: z.number().int().min(0).max(149999),
       })
       .parse(data),
   )
@@ -1023,7 +1030,8 @@ export const createReferral = createServerFn({
       name: data.name.trim(),
       code: data.code.trim().toUpperCase(),
       active: true,
-      discount_percent: data.discountPercent,
+      discount_individual_paise: data.individualDiscountPaise,
+      discount_squad_paise: data.squadDiscountPaise,
     });
     if (error) {
       if (error.code === "23505") throw new Error("That referral code already exists.");
@@ -1038,7 +1046,8 @@ export const setReferralDiscount = createServerFn({
   .inputValidator((data) =>
     z.object({
       id: z.string().uuid(),
-      discountPercent: z.number().int().min(0).max(99),
+      individualDiscountPaise: z.number().int().min(0).max(34899),
+      squadDiscountPaise: z.number().int().min(0).max(149999),
     }).parse(data),
   )
   .handler(async ({ context, data }) => {
@@ -1047,7 +1056,10 @@ export const setReferralDiscount = createServerFn({
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("referrals")
-      .update({ discount_percent: data.discountPercent })
+      .update({
+        discount_individual_paise: data.individualDiscountPaise,
+        discount_squad_paise: data.squadDiscountPaise,
+      })
       .eq("id", data.id);
     if (error) {
       console.error("Referral discount update failed:", error);
