@@ -123,6 +123,7 @@ function BookPage() {
   const [appliedReferral, setAppliedReferral] = useState<{
     code: string;
     individualDiscountPaise: number;
+    squadDiscountPaise: number;
   } | null>(null);
   const [checkingReferral, setCheckingReferral] = useState(false);
   const [referralError, setReferralError] = useState("");
@@ -133,10 +134,11 @@ function BookPage() {
   // One booking always represents exactly one pass.
   const total = p.price;
   const people = p.people;
-  const discountAmountPaise =
-    passType === "individual" && appliedReferral
+  const discountAmountPaise = appliedReferral
+    ? passType === "individual"
       ? appliedReferral.individualDiscountPaise
-      : 0;
+      : appliedReferral.squadDiscountPaise
+    : 0;
   const amountDuePaise = total * 100 - discountAmountPaise;
 
   const applyReferralCode = useCallback(async (value: string) => {
@@ -152,7 +154,7 @@ function BookPage() {
 
       setCheckingReferral(true);
       try {
-        const result = await lookupReferral({ data: { code } });
+        const result = await lookupReferral({ data: { code, passType } });
         if (requestId === referralRequestId.current) {
           setReferralCode(result.code);
           setAppliedReferral(result);
@@ -169,10 +171,10 @@ function BookPage() {
           setCheckingReferral(false);
         }
       }
-  }, [lookupReferral]);
+  }, [lookupReferral, passType]);
 
   useEffect(() => {
-    if (ref && passType === "individual") void applyReferralCode(ref);
+    if (ref) void applyReferralCode(ref);
   }, [applyReferralCode, passType, ref]);
 
   function updateSquadMember(index: number, value: string) {
@@ -223,7 +225,7 @@ function BookPage() {
           passType,
           quantity: 1,
           attendeeNames,
-          referralCode: passType === "individual" ? appliedReferral?.code : undefined,
+          referralCode: discountAmountPaise > 0 ? appliedReferral?.code : undefined,
         },
       });
 
@@ -495,56 +497,55 @@ function BookPage() {
           />
         </fieldset>
 
-        {/* Referral codes apply to individual passes only. */}
-        {passType === "individual" && (
-          <fieldset className="space-y-3">
-            <legend className="font-display text-xs uppercase tracking-[0.2em] text-gold-soft">
-              Have a referral/coupon code?
-            </legend>
+        <fieldset className="space-y-3">
+          <legend className="font-display text-xs uppercase tracking-[0.2em] text-gold-soft">
+            Have a referral/coupon code?
+          </legend>
 
-            <div className="flex gap-2">
-              <input
-                maxLength={24}
-                placeholder="Enter code"
-                autoCapitalize="characters"
-                autoComplete="off"
-                aria-label="Referral code"
-                className={inputCls}
-                value={referralCode}
-                disabled={checkingReferral}
-                onChange={(e) => {
-                  const value = e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "");
-                  referralRequestId.current += 1;
-                  setCheckingReferral(false);
-                  setReferralCode(value);
-                  setAppliedReferral(null);
-                  setReferralError("");
-                }}
-              />
-              <button
-                type="button"
-                disabled={checkingReferral || !referralCode.trim()}
-                onClick={() => void applyReferralCode(referralCode)}
-                className={btnGold}
-              >
-                {checkingReferral ? "Checking…" : "Apply"}
-              </button>
-            </div>
-            {referralError ? (
-              <p role="alert" className="text-sm text-destructive">
-                {referralError}
-              </p>
-            ) : appliedReferral ? (
-              <p className="text-sm text-success">
-                {appliedReferral.code} applied — ₹50 off.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Enter a valid code to get ₹50 off your Individual pass.
-              </p>
-            )}
-          </fieldset>
-        )}
+          <div className="flex gap-2">
+            <input
+              maxLength={24}
+              placeholder="Enter code"
+              autoCapitalize="characters"
+              autoComplete="off"
+              aria-label="Referral code"
+              className={inputCls}
+              value={referralCode}
+              disabled={checkingReferral}
+              onChange={(e) => {
+                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+                referralRequestId.current += 1;
+                setCheckingReferral(false);
+                setReferralCode(value);
+                setAppliedReferral(null);
+                setReferralError("");
+              }}
+            />
+            <button
+              type="button"
+              disabled={checkingReferral || !referralCode.trim()}
+              onClick={() => void applyReferralCode(referralCode)}
+              className={btnGold}
+            >
+              {checkingReferral ? "Checking…" : "Apply"}
+            </button>
+          </div>
+          {referralError ? (
+            <p role="alert" className="text-sm text-destructive">
+              {referralError}
+            </p>
+          ) : appliedReferral ? (
+            <p className="text-sm text-success">
+              {discountAmountPaise > 0
+                ? `${appliedReferral.code} applied — ${inr(discountAmountPaise / 100)} off.`
+                : `${appliedReferral.code} is not valid for this pass.`}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Enter a valid code to get a booking discount.
+            </p>
+          )}
+        </fieldset>
 
         {/* STEP 4 — SQUAD MEMBERS */}
         {passType === "squad" && (
@@ -598,7 +599,7 @@ function BookPage() {
                 {people} {people === 1 ? "person" : "people"} ·{" "}
                 {EVENT_DATES.find((d) => d.value === date)?.short}
               </div>
-              {appliedReferral && passType === "individual" ? (
+              {appliedReferral && discountAmountPaise > 0 ? (
                 <div className="text-xs text-success">
                   {appliedReferral.code} applied
                 </div>

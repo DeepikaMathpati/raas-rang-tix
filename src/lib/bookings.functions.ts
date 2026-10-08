@@ -67,7 +67,7 @@ async function findActiveReferralCode(code: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: referral, error } = await supabaseAdmin
     .from("referrals")
-    .select("code")
+    .select("code, discount_individual_paise, discount_squad_paise")
     .eq("code", code.toUpperCase())
     .eq("active", true)
     .maybeSingle();
@@ -80,7 +80,7 @@ async function findActiveReferralCode(code: string) {
     throw new Error("This referral code is invalid or inactive.");
   }
 
-  return referral.code;
+  return referral;
 }
 
 // ============================================================
@@ -94,11 +94,18 @@ export const createBooking = createServerFn({
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const baseAmount = PRICE_PAISE[data.passType];
     const attendeeCount = PEOPLE[data.passType];
-    const referralCode =
-      data.passType === "individual" && data.referralCode
-        ? await findActiveReferralCode(data.referralCode)
-        : null;
-    const discountAmount = referralCode ? REFERRAL_DISCOUNT_PAISE : 0;
+    const referral = data.referralCode
+      ? await findActiveReferralCode(data.referralCode)
+      : null;
+    const discountAmount = referral
+      ? data.passType === "individual"
+        ? referral.discount_individual_paise
+        : referral.discount_squad_paise
+      : 0;
+    if (data.referralCode && discountAmount === 0) {
+      throw new Error("This referral code is not valid for this pass.");
+    }
+    const referralCode = referral?.code ?? null;
     const amount = baseAmount - discountAmount;
     const bookingCode = "RM26-" + randomCode(8);
     const accessToken = randomAccessToken();
@@ -238,15 +245,27 @@ export const getReferralDiscount = createServerFn({
   method: "GET",
 })
   .inputValidator((data) =>
-    z.object({ code: z.string().trim().min(3).max(24).regex(/^[A-Z0-9_-]+$/i) }).parse(data),
+    z
+      .object({
+        code: z.string().trim().min(3).max(24).regex(/^[A-Z0-9_-]+$/i),
+        passType: z.enum(["individual", "squad"]),
+      })
+      .parse(data),
   )
   .handler(async ({ data }) => {
-    const code = await findActiveReferralCode(data.code);
+    const referral = await findActiveReferralCode(data.code);
+    const discountPaise =
+      data.passType === "squad"
+        ? referral.discount_squad_paise
+        : referral.discount_individual_paise;
+    if (discountPaise <= 0) {
+      throw new Error("This referral code is not valid for this pass.");
+    }
 
     return {
-      code,
-      individualDiscountPaise: REFERRAL_DISCOUNT_PAISE,
-      squadDiscountPaise: 0,
+      code: referral.code,
+      individualDiscountPaise: referral.discount_individual_paise,
+      squadDiscountPaise: referral.discount_squad_paise,
     };
   });
 
@@ -1067,7 +1086,7 @@ export const createReferral = createServerFn({
       code: data.code.trim().toUpperCase(),
       active: true,
       discount_individual_paise: REFERRAL_DISCOUNT_PAISE,
-      discount_squad_paise: 0,
+      discount_squad_paise: REFERRAL_DISCOUNT_PAISE,
     });
     if (error) {
       if (error.code === "23505") throw new Error("That referral code already exists.");
