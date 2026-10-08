@@ -1,12 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import {
   createBooking,
-  validateReferralCode,
+  getReferralDiscount,
   verifyPayment,
 } from "@/lib/bookings.functions";
 import {
@@ -94,7 +94,7 @@ function BookPage() {
   const navigate = useNavigate();
 
   const create = useServerFn(createBooking);
-  const validateReferral = useServerFn(validateReferralCode);
+  const lookupReferral = useServerFn(getReferralDiscount);
   const verify = useServerFn(verifyPayment);
 
   const [passType, setPassType] = useState<PassType>(
@@ -120,41 +120,60 @@ function BookPage() {
 
   const [busy, setBusy] = useState(false);
   const [referralCode, setReferralCode] = useState(ref ?? "");
-  const [appliedReferralCode, setAppliedReferralCode] = useState<string | null>(null);
-  const [validatingReferral, setValidatingReferral] = useState(false);
-  const [referralError, setReferralError] = useState<string | null>(null);
+  const [appliedReferral, setAppliedReferral] = useState<{
+    code: string;
+    individualDiscountPaise: number;
+  } | null>(null);
+  const [checkingReferral, setCheckingReferral] = useState(false);
+  const [referralError, setReferralError] = useState("");
+  const referralRequestId = useRef(0);
 
   const p = PASSES[passType];
 
   // One booking always represents exactly one pass.
-  const total =
-    passType === "individual" && appliedReferralCode
-      ? p.price - 50
-      : p.price;
+  const total = p.price;
   const people = p.people;
+  const discountAmountPaise =
+    passType === "individual" && appliedReferral
+      ? appliedReferral.individualDiscountPaise
+      : 0;
+  const amountDuePaise = total * 100 - discountAmountPaise;
 
-  async function applyReferralCode() {
-    const code = referralCode.trim();
+  const applyReferralCode = useCallback(async (value: string) => {
+    const code = value.trim().toUpperCase();
+    const requestId = ++referralRequestId.current;
+    setReferralError("");
+
     if (!code) {
-      setReferralError("Enter a referral/coupon code.");
+      setAppliedReferral(null);
+      setReferralError("Enter a referral code to apply a discount.");
       return;
     }
 
-    setValidatingReferral(true);
-    setReferralError(null);
+    setCheckingReferral(true);
     try {
-      const result = await validateReferral({ data: { code } });
-      setReferralCode(result.code);
-      setAppliedReferralCode(result.code);
-    } catch (error) {
-      setAppliedReferralCode(null);
-      setReferralError(
-        error instanceof Error ? error.message : "Could not validate referral code.",
-      );
+      const result = await lookupReferral({ data: { code } });
+      if (requestId === referralRequestId.current) {
+        setReferralCode(result.code);
+        setAppliedReferral(result);
+      }
+    } catch (error: unknown) {
+      if (requestId === referralRequestId.current) {
+        setAppliedReferral(null);
+        setReferralError(
+          error instanceof Error ? error.message : "Could not validate this referral code.",
+        );
+      }
     } finally {
-      setValidatingReferral(false);
+      if (requestId === referralRequestId.current) {
+        setCheckingReferral(false);
+      }
     }
-  }
+  }, [lookupReferral]);
+
+  useEffect(() => {
+    if (ref && passType === "individual") void applyReferralCode(ref);
+  }, [applyReferralCode, passType, ref]);
 
   function updateSquadMember(index: number, value: string) {
     setSquadMembers((current) =>
@@ -204,7 +223,7 @@ function BookPage() {
           passType,
           quantity: 1,
           attendeeNames,
-          referralCode: passType === "individual" ? (appliedReferralCode ?? undefined) : undefined,
+          referralCode: passType === "individual" ? appliedReferral?.code : undefined,
         },
       });
 
@@ -233,7 +252,7 @@ function BookPage() {
         amount: res.amount,
         currency: "INR",
         name: "Raas Mahotsav 2026",
-        description: `${p.label} · ${date}`,
+        description: `${p.label} · ${date}${res.discountAmount ? ` · ${inr(res.discountAmount / 100)} referral discount` : ""}`,
         prefill: {
           name: primaryName,
           email: form.email,
@@ -380,7 +399,9 @@ function BookPage() {
               <button
                 type="button"
                 key={k}
-                onClick={() => setPassType(k)}
+                onClick={() => {
+                  setPassType(k);
+                }}
                 aria-pressed={passType === k}
                 className={`rounded-lg border p-4 text-left transition ${
                   passType === k
@@ -474,7 +495,7 @@ function BookPage() {
           />
         </fieldset>
 
-        {/* REFERRAL CODES APPLY TO INDIVIDUAL PASSES ONLY */}
+        {/* Referral codes apply to individual passes only. */}
         {passType === "individual" && (
           <fieldset className="space-y-3">
             <legend className="font-display text-xs uppercase tracking-[0.2em] text-gold-soft">
@@ -486,30 +507,40 @@ function BookPage() {
                 maxLength={24}
                 placeholder="Enter code"
                 autoCapitalize="characters"
+                autoComplete="off"
+                aria-label="Referral code"
                 className={inputCls}
                 value={referralCode}
-                disabled={validatingReferral}
+                disabled={checkingReferral}
                 onChange={(e) => {
-                  setReferralCode(e.target.value);
-                  setAppliedReferralCode(null);
-                  setReferralError(null);
+                  const value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+                  referralRequestId.current += 1;
+                  setCheckingReferral(false);
+                  setReferralCode(value);
+                  setAppliedReferral(null);
+                  setReferralError("");
                 }}
               />
               <button
                 type="button"
-                disabled={validatingReferral || !referralCode.trim()}
-                onClick={applyReferralCode}
+                disabled={checkingReferral || !referralCode.trim()}
+                onClick={() => void applyReferralCode(referralCode)}
                 className={btnGold}
               >
-                {validatingReferral ? "Checking…" : "Apply"}
+                {checkingReferral ? "Checking…" : "Apply"}
               </button>
             </div>
-            {appliedReferralCode && (
-              <p className="text-sm text-green-500">Code {appliedReferralCode} applied.</p>
-            )}
-            {referralError && (
+            {referralError ? (
               <p role="alert" className="text-sm text-destructive">
                 {referralError}
+              </p>
+            ) : appliedReferral ? (
+              <p className="text-sm text-success">
+                {appliedReferral.code} applied — ₹50 off.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Enter a valid code to get ₹50 off your Individual pass.
               </p>
             )}
           </fieldset>
@@ -548,30 +579,35 @@ function BookPage() {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-4 backdrop-blur">
           <div className="mx-auto flex max-w-xl items-center justify-between gap-4">
             <div className="min-w-0">
-              {passType === "individual" && appliedReferralCode ? (
+              {discountAmountPaise > 0 ? (
                 <div className="space-y-0.5 text-sm">
                   <div>{inr(p.price)}</div>
                   <div className="text-muted-foreground">
-                    Referral discount: -{inr(50)}
+                    Referral discount: -{inr(discountAmountPaise / 100)}
                   </div>
                   <div className="font-display text-xl text-gold-gradient">
-                    Total: {inr(total)}
+                    Total: {inr(amountDuePaise / 100)}
                   </div>
                 </div>
               ) : (
                 <div className="font-display text-2xl text-gold-gradient">
-                  {inr(total)}
+                  {inr(amountDuePaise / 100)}
                 </div>
               )}
               <div className="text-sm text-muted-foreground">
                 {people} {people === 1 ? "person" : "people"} ·{" "}
                 {EVENT_DATES.find((d) => d.value === date)?.short}
               </div>
+              {appliedReferral && passType === "individual" ? (
+                <div className="text-xs text-success">
+                  {appliedReferral.code} applied
+                </div>
+              ) : null}
             </div>
 
             <button
               type="submit"
-              disabled={busy || validatingReferral}
+              disabled={busy || checkingReferral}
               className={btnGold}
             >
               {busy ? "Please wait…" : "Pay & Book"}

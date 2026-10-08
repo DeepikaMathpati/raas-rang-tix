@@ -52,6 +52,8 @@ export type Database = {
       bookings: {
         Row: {
           amount_paise: number;
+          base_amount_paise: number;
+          discount_amount_paise: number;
           attendee_count: number;
           booking_code: string;
           created_at: string;
@@ -64,12 +66,16 @@ export type Database = {
           pass_type: Database["public"]["Enums"]["pass_type"];
           payment_status: Database["public"]["Enums"]["payment_status"];
           quantity: number;
+          referral_discount_paise: number;
+          referral_discount_percent: number;
           razorpay_order_id: string | null;
           referral_code: string | null;
         };
 
         Insert: {
           amount_paise: number;
+          base_amount_paise: number;
+          discount_amount_paise?: number;
           attendee_count: number;
           booking_code: string;
           created_at?: string;
@@ -82,12 +88,16 @@ export type Database = {
           pass_type: Database["public"]["Enums"]["pass_type"];
           payment_status?: Database["public"]["Enums"]["payment_status"];
           quantity: number;
+          referral_discount_paise?: number;
+          referral_discount_percent?: number;
           razorpay_order_id?: string | null;
           referral_code?: string | null;
         };
 
         Update: {
           amount_paise?: number;
+          base_amount_paise?: number;
+          discount_amount_paise?: number;
           attendee_count?: number;
           booking_code?: string;
           created_at?: string;
@@ -100,6 +110,8 @@ export type Database = {
           pass_type?: Database["public"]["Enums"]["pass_type"];
           payment_status?: Database["public"]["Enums"]["payment_status"];
           quantity?: number;
+          referral_discount_paise?: number;
+          referral_discount_percent?: number;
           razorpay_order_id?: string | null;
           referral_code?: string | null;
         };
@@ -209,6 +221,9 @@ export type Database = {
           code: string;
           name: string;
           active: boolean;
+          discount_individual_paise: number;
+          discount_squad_paise: number;
+          discount_percent: number;
           created_at: string;
         };
         Insert: {
@@ -216,6 +231,9 @@ export type Database = {
           code: string;
           name: string;
           active?: boolean;
+          discount_individual_paise?: number;
+          discount_squad_paise?: number;
+          discount_percent?: number;
           created_at?: string;
         };
         Update: {
@@ -223,6 +241,9 @@ export type Database = {
           code?: string;
           name?: string;
           active?: boolean;
+          discount_individual_paise?: number;
+          discount_squad_paise?: number;
+          discount_percent?: number;
           created_at?: string;
         };
         Relationships: [];
