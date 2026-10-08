@@ -218,6 +218,35 @@ export const createBooking = createServerFn({
       keyId: creds.keyId,
     };
   });
+
+export const getReferralDiscount = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data) => z.object({ code: z.string().trim().min(3).max(24) }).parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const code = data.code.toUpperCase();
+    const { data: referral, error } = await supabaseAdmin
+      .from("referrals")
+      .select("code, discount_percent")
+      .eq("code", code)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Referral validation failed:", error);
+      throw new Error("Could not check this referral code. Please try again.");
+    }
+    if (!referral) {
+      throw new Error("This referral code is invalid or inactive.");
+    }
+
+    return {
+      code: referral.code,
+      discountPercent: referral.discount_percent,
+    };
+  });
+
 // ============================================================
 // RAZORPAY SIGNATURE
 // ============================================================

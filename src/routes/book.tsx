@@ -1,10 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import { createBooking, verifyPayment } from "@/lib/bookings.functions";
+import {
+  createBooking,
+  getReferralDiscount,
+  verifyPayment,
+} from "@/lib/bookings.functions";
 import {
   EVENT,
   EVENT_DATES,
@@ -90,6 +94,7 @@ function BookPage() {
   const navigate = useNavigate();
 
   const create = useServerFn(createBooking);
+  const lookupReferral = useServerFn(getReferralDiscount);
   const verify = useServerFn(verifyPayment);
 
   const [passType, setPassType] = useState<PassType>(
@@ -114,18 +119,60 @@ function BookPage() {
   ]);
 
   const [busy, setBusy] = useState(false);
-  const [appliedPrice, setAppliedPrice] = useState<{
-    baseAmount: number;
-    discountAmount: number;
+  const [referralCode, setReferralCode] = useState(ref ?? "");
+  const [appliedReferral, setAppliedReferral] = useState<{
+    code: string;
     discountPercent: number;
-    amount: number;
   } | null>(null);
+  const [checkingReferral, setCheckingReferral] = useState(false);
+  const [referralError, setReferralError] = useState("");
+  const referralRequestId = useRef(0);
 
   const p = PASSES[passType];
 
   // One booking always represents exactly one pass.
   const total = p.price;
   const people = p.people;
+  const discountAmountPaise = Math.floor(
+    total * 100 * (appliedReferral?.discountPercent ?? 0) / 100,
+  );
+  const amountDuePaise = total * 100 - discountAmountPaise;
+
+  const applyReferralCode = useCallback(async (value: string) => {
+    const code = value.trim().toUpperCase();
+    const requestId = ++referralRequestId.current;
+    setReferralError("");
+
+    if (!code) {
+      setAppliedReferral(null);
+      setReferralError("Enter a referral code to apply a discount.");
+      return;
+    }
+
+    setCheckingReferral(true);
+    try {
+      const result = await lookupReferral({ data: { code } });
+      if (requestId === referralRequestId.current) {
+        setReferralCode(result.code);
+        setAppliedReferral(result);
+      }
+    } catch (error: unknown) {
+      if (requestId === referralRequestId.current) {
+        setAppliedReferral(null);
+        setReferralError(
+          error instanceof Error ? error.message : "Could not validate this referral code.",
+        );
+      }
+    } finally {
+      if (requestId === referralRequestId.current) {
+        setCheckingReferral(false);
+      }
+    }
+  }, [lookupReferral]);
+
+  useEffect(() => {
+    if (ref) void applyReferralCode(ref);
+  }, [applyReferralCode, ref]);
 
   function updateSquadMember(index: number, value: string) {
     setSquadMembers((current) =>
@@ -175,14 +222,8 @@ function BookPage() {
           passType,
           quantity: 1,
           attendeeNames,
-          referralCode: ref,
+          referralCode: appliedReferral?.code,
         },
-      });
-      setAppliedPrice({
-        baseAmount: res.baseAmount,
-        discountAmount: res.discountAmount,
-        discountPercent: res.discountPercent,
-        amount: res.amount,
       });
 
       if (!res.paymentsConfigured) {
@@ -359,7 +400,6 @@ function BookPage() {
                 key={k}
                 onClick={() => {
                   setPassType(k);
-                  setAppliedPrice(null);
                 }}
                 aria-pressed={passType === k}
                 className={`rounded-lg border p-4 text-left transition ${
@@ -454,11 +494,56 @@ function BookPage() {
           />
         </fieldset>
 
-        {/* STEP 4 — SQUAD MEMBERS */}
+        {/* STEP 4 — REFERRAL CODE */}
+        <fieldset className="space-y-3">
+          <legend className="font-display text-xs uppercase tracking-[0.2em] text-gold-soft">
+            4 · Referral discount <span className="normal-case tracking-normal text-muted-foreground">(optional)</span>
+          </legend>
+          <div className="flex gap-2">
+            <input
+              maxLength={24}
+              autoCapitalize="characters"
+              autoComplete="off"
+              aria-label="Referral code"
+              placeholder="Enter referral code"
+              className={inputCls}
+              value={referralCode}
+              onChange={(e) => {
+                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+                referralRequestId.current += 1;
+                setCheckingReferral(false);
+                setReferralCode(value);
+                setAppliedReferral(null);
+                setReferralError("");
+              }}
+            />
+            <button
+              type="button"
+              className={btnGold}
+              disabled={checkingReferral || !referralCode.trim()}
+              onClick={() => void applyReferralCode(referralCode)}
+            >
+              {checkingReferral ? "Checking…" : "Apply"}
+            </button>
+          </div>
+          {referralError ? (
+            <p role="alert" className="text-sm text-destructive">{referralError}</p>
+          ) : appliedReferral ? (
+            <p className="text-sm text-success">
+              {appliedReferral.code} applied — {appliedReferral.discountPercent}% off.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Have a referral code? Enter it to see your discount.
+            </p>
+          )}
+        </fieldset>
+
+        {/* STEP 5 — SQUAD MEMBERS */}
         {passType === "squad" && (
           <fieldset className="space-y-3">
             <legend className="mb-1 font-display text-xs uppercase tracking-[0.2em] text-gold-soft">
-              4 · Squad members
+              5 · Squad members
             </legend>
 
             <p className="mb-4 text-sm text-muted-foreground">
@@ -488,29 +573,25 @@ function BookPage() {
           <div className="mx-auto flex max-w-xl items-center justify-between gap-4">
             <div>
               <div className="font-display text-2xl text-gold-gradient">
-                {inr((appliedPrice?.amount ?? total))}
+                {inr(amountDuePaise / 100)}
               </div>
 
               <div className="text-sm text-muted-foreground">
                 {people} {people === 1 ? "person" : "people"} ·{" "}
                 {EVENT_DATES.find((d) => d.value === date)?.short}
               </div>
-              {ref && appliedPrice?.discountPercent ? (
+              {appliedReferral ? (
                 <div className="text-xs text-success">
-                  List {inr(appliedPrice.baseAmount / 100)} · {ref.toUpperCase()}{" "}
-                  {appliedPrice.discountPercent}% off
-                  {" "}({inr(appliedPrice.discountAmount / 100)} saved)
-                </div>
-              ) : ref ? (
-                <div className="text-xs text-muted-foreground">
-                  Referral discount will be confirmed at checkout.
+                  List {inr(total)} · {appliedReferral.code}{" "}
+                  {appliedReferral.discountPercent}% off
+                  {" "}({inr(discountAmountPaise / 100)} saved)
                 </div>
               ) : null}
             </div>
 
             <button
               type="submit"
-              disabled={busy}
+              disabled={busy || checkingReferral}
               className={btnGold}
             >
               {busy ? "Please wait…" : "Pay & Book"}
