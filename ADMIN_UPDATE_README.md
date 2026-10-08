@@ -5,7 +5,7 @@ This update keeps the existing user-facing design, booking flow, Razorpay paymen
 ## Admin additions
 
 - Stats dashboard with bookings, revenue, attendees, check-in, remaining, date-wise and pass-wise stats.
-- Attendee list with search and date filter.
+- Attendee list with search, date and payment-status filters, and admin-only deletion of pending bookings.
 - Referral management with referral codes, shareable `/book?ref=CODE` links, active/pause control, and referral performance.
 - Existing QR check-in scanner and manual ticket-code check-in.
 - Website Control for editable public content: tagline, time, venue, phone, co-partner, announcement, intro text, and highlights.

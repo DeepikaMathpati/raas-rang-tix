@@ -1003,6 +1003,40 @@ export const getAdminData = createServerFn({
       },
     };
   });
+
+export const deletePendingBooking = createServerFn({
+  method: "POST",
+})
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ bookingId: z.string().uuid() }).parse(data))
+  .handler(async ({ context, data }) => {
+    const { isAdmin } = await requireAdminRole(context.userId);
+    if (!isAdmin) throw new Error("Only admins can delete pending bookings.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: paidPayments, error: paymentsError } = await supabaseAdmin
+      .from("payments")
+      .select("id")
+      .eq("booking_id", data.bookingId)
+      .eq("status", "paid")
+      .limit(1);
+    if (paymentsError) throw new Error("Could not verify booking payment status.");
+    if (paidPayments.length > 0) {
+      throw new Error("This booking has a recorded payment and cannot be deleted.");
+    }
+
+    const { data: deletedBookings, error } = await supabaseAdmin
+      .from("bookings")
+      .delete()
+      .eq("id", data.bookingId)
+      .eq("payment_status", "pending")
+      .select("id");
+    if (error) throw new Error("Could not delete the pending booking.");
+    if (deletedBookings.length === 0) {
+      throw new Error("This booking is no longer pending and was not deleted.");
+    }
+  });
+
 export const createReferral = createServerFn({
   method: "POST",
 })
