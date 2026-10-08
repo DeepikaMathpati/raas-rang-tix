@@ -29,7 +29,7 @@ export const PASSES = {
   squad: { label: "Squad Pass", price: 1500, people: 5 },
 } as const;
 export type PassType = keyof typeof PASSES;
-export const SQUAD_SAVINGS = PASSES.individual.price * 5 - PASSES.squad.price; // 245
+export const SQUAD_SAVINGS = PASSES.individual.price * 5 - PASSES.squad.price;
 
 export const HIGHLIGHTS = [
   "Dandiya & Garba",
