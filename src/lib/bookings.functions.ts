@@ -36,7 +36,7 @@ const bookingInput = z
       .array(z.string().trim().min(2, "Attendee name must contain at least 2 characters.").max(100))
       .min(1)
       .max(5),
-    referralCode: z.string().trim().max(24).regex(/^[A-Z0-9-]+$/i).optional(),
+    referralCode: z.string().trim().max(24).regex(/^[A-Z0-9_-]+$/i).optional(),
   })
   .superRefine((data, ctx) => {
     const expectedCount = data.passType === "individual" ? 1 : 5;
@@ -605,13 +605,78 @@ export const getBooking = createServerFn({
   .inputValidator((data) =>
     z
       .object({
-        token: z.string().regex(/^[a-f0-9]{64}$/),
+        code: z.string().regex(/^(?:[a-f0-9]{64}|RM26-[A-Z0-9]{8})$/),
       })
       .parse(data),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    return loadBooking(supabaseAdmin, { token: data.token });
+    const bookingSelection = `
+      id,
+      booking_code,
+      customer_name,
+      mobile,
+      email,
+      event_date,
+      pass_type,
+      quantity,
+      attendee_count,
+      amount_paise,
+      payment_status
+    `;
+    // --------------------------------------------------------
+    // Booking
+    // --------------------------------------------------------
+    const { data: booking, error } = /^[a-f0-9]{64}$/.test(data.code)
+      ? await supabaseAdmin
+          .from("bookings")
+          .select(bookingSelection)
+          .eq("access_token", data.code)
+          .maybeSingle()
+      : await supabaseAdmin
+          .from("bookings")
+          .select(bookingSelection)
+          .eq("booking_code", data.code)
+          .maybeSingle();
+    if (error || !booking) {
+      return null;
+    }
+    // --------------------------------------------------------
+    // Attendees
+    // --------------------------------------------------------
+    let attendees: {
+      attendee_index: number;
+      attendee_name: string;
+    }[] = [];
+    const { data: attendeeRows } = await supabaseAdmin
+      .from("attendees")
+      .select("attendee_index, attendee_name")
+      .eq("booking_id", booking.id)
+      .order("attendee_index", {
+        ascending: true,
+      });
+    attendees = attendeeRows ?? [];
+    // --------------------------------------------------------
+    // Ticket / QR
+    // --------------------------------------------------------
+    let ticket: {
+      ticket_code: string;
+      checked_in_at: string | null;
+    } | null = null;
+    if (booking.payment_status === "paid") {
+      const { data: ticketRow } = await supabaseAdmin
+        .from("tickets")
+        .select("ticket_code, checked_in_at")
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+      ticket = ticketRow ?? null;
+    }
+    const { id: _id, mobile: _mobile, email: _email, ...publicBooking } = booking;
+    return {
+      ...publicBooking,
+      attendees,
+      ticket,
+    };
   });
 
 function getClaimEmail(claims: unknown) {
@@ -622,67 +687,6 @@ function getClaimEmail(claims: unknown) {
   const email = claims.email;
   return typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
 }
-
-type SupabaseAdmin = typeof import("@/integrations/supabase/client.server").supabaseAdmin;
-
-async function loadBooking(
-  supabaseAdmin: SupabaseAdmin,
-  lookup: { token: string } | { code: string; email: string },
-) {
-  const bookingSelection = `
-    id,
-    booking_code,
-    customer_name,
-    mobile,
-    email,
-    event_date,
-    pass_type,
-    quantity,
-    attendee_count,
-    amount_paise,
-    payment_status
-  `;
-  const bookingQuery = supabaseAdmin.from("bookings").select(bookingSelection);
-  const { data: booking, error } =
-    "token" in lookup
-      ? await bookingQuery.eq("access_token", lookup.token).maybeSingle()
-      : await bookingQuery.eq("booking_code", lookup.code).eq("email", lookup.email).maybeSingle();
-  if (error || !booking) return null;
-
-  const [{ data: attendees }, { data: ticket }] = await Promise.all([
-    supabaseAdmin
-      .from("attendees")
-      .select("attendee_index, attendee_name")
-      .eq("booking_id", booking.id)
-      .order("attendee_index", { ascending: true }),
-    booking.payment_status === "paid"
-      ? supabaseAdmin
-          .from("tickets")
-          .select("ticket_code, checked_in_at")
-          .eq("booking_id", booking.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  const { id: _id, mobile: _mobile, email: _email, ...publicBooking } = booking;
-  return {
-    ...publicBooking,
-    attendees: attendees ?? [],
-    ticket,
-  };
-}
-
-export const getCustomerBooking = createServerFn({
-  method: "GET",
-})
-  .inputValidator((data) => z.object({ code: z.string().regex(/^RM26-[A-Z0-9]{8}$/) }).parse(data))
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ data, context }) => {
-    const email = getClaimEmail(context.claims);
-    if (!email) throw new Error("No authenticated email address was found for this account.");
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    return loadBooking(supabaseAdmin, { code: data.code, email });
-  });
 
 export const getMyTickets = createServerFn({
   method: "GET",
@@ -1050,7 +1054,7 @@ export const createReferral = createServerFn({
           .trim()
           .min(3)
           .max(24)
-          .regex(/^[A-Z0-9-_]+$/i),
+          .regex(/^[A-Z0-9_-]+$/i),
       })
       .parse(data),
   )
