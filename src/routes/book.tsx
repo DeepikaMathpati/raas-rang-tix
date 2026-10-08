@@ -513,7 +513,7 @@ function BookPage() {
                 value={referralCode}
                 disabled={checkingReferral}
                 onChange={(e) => {
-                  const value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+                  const value = e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "");
                   referralRequestId.current += 1;
                   setCheckingReferral(false);
                   setReferralCode(value);
