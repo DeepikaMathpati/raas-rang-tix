@@ -155,7 +155,7 @@ function BookPage() {
 
       setCheckingReferral(true);
       try {
-        const result = await lookupReferral({ data: { code } });
+        const result = await lookupReferral({ data: { code, passType } });
         if (requestId === referralRequestId.current) {
           setReferralCode(result.code);
           setAppliedReferral(result);
@@ -172,6 +172,7 @@ function BookPage() {
           setCheckingReferral(false);
         }
       }
+<<<<<<< HEAD
     },
     [lookupReferral],
   );
@@ -179,6 +180,13 @@ function BookPage() {
   useEffect(() => {
     if (ref) void applyReferralCode(ref);
   }, [applyReferralCode, ref]);
+=======
+  }, [lookupReferral, passType]);
+
+  useEffect(() => {
+    if (ref) void applyReferralCode(ref);
+  }, [applyReferralCode, passType, ref]);
+>>>>>>> 21f4c4b083b44830e2c70754e11feecc64d79466
 
   function updateSquadMember(index: number, value: string) {
     setSquadMembers((current) =>
@@ -228,7 +236,11 @@ function BookPage() {
           passType,
           quantity: 1,
           attendeeNames,
+<<<<<<< HEAD
           referralCode: appliedReferral?.code,
+=======
+          referralCode: discountAmountPaise > 0 ? appliedReferral?.code : undefined,
+>>>>>>> 21f4c4b083b44830e2c70754e11feecc64d79466
         },
       });
 
@@ -512,6 +524,7 @@ function BookPage() {
           </legend>
 
           <div className="flex gap-2">
+<<<<<<< HEAD
             <label className="min-w-0 flex-1">
               <span className="sr-only">Referral code</span>
               <input
@@ -532,6 +545,26 @@ function BookPage() {
                 }}
               />
             </label>
+=======
+            <input
+              maxLength={24}
+              placeholder="Enter code"
+              autoCapitalize="characters"
+              autoComplete="off"
+              aria-label="Referral code"
+              className={inputCls}
+              value={referralCode}
+              disabled={checkingReferral}
+              onChange={(e) => {
+                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+                referralRequestId.current += 1;
+                setCheckingReferral(false);
+                setReferralCode(value);
+                setAppliedReferral(null);
+                setReferralError("");
+              }}
+            />
+>>>>>>> 21f4c4b083b44830e2c70754e11feecc64d79466
             <button
               type="button"
               disabled={checkingReferral || !referralCode.trim()}
@@ -545,6 +578,7 @@ function BookPage() {
             <p role="alert" className="text-sm text-destructive">
               {referralError}
             </p>
+<<<<<<< HEAD
           ) : appliedReferral && discountAmountPaise > 0 ? (
             <p className="text-sm text-success">
               {appliedReferral.code} applied — {inr(discountAmountPaise / 100)} off this pass.
@@ -556,6 +590,17 @@ function BookPage() {
           ) : (
             <p className="text-xs text-muted-foreground">
               Enter a valid code to check its discount for this pass.
+=======
+          ) : appliedReferral ? (
+            <p className="text-sm text-success">
+              {discountAmountPaise > 0
+                ? `${appliedReferral.code} applied — ${inr(discountAmountPaise / 100)} off.`
+                : `${appliedReferral.code} is not valid for this pass.`}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Enter a valid code to get a booking discount.
+>>>>>>> 21f4c4b083b44830e2c70754e11feecc64d79466
             </p>
           )}
         </fieldset>
@@ -611,8 +656,15 @@ function BookPage() {
                 {people} {people === 1 ? "person" : "people"} ·{" "}
                 {EVENT_DATES.find((d) => d.value === date)?.short}
               </div>
+<<<<<<< HEAD
               {appliedReferral ? (
                 <div className="text-xs text-success">{appliedReferral.code} applied</div>
+=======
+              {appliedReferral && discountAmountPaise > 0 ? (
+                <div className="text-xs text-success">
+                  {appliedReferral.code} applied
+                </div>
+>>>>>>> 21f4c4b083b44830e2c70754e11feecc64d79466
               ) : null}
             </div>
 

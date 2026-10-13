@@ -2,17 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { getBooking, getCustomerBooking } from "@/lib/bookings.functions";
+import { getBooking } from "@/lib/bookings.functions";
 import { EVENT, PASSES, dateLabel, inr } from "@/lib/event";
 import { btnOutline, Ornament } from "@/components/festive";
 
 const bookingQuery = (code: string) =>
   queryOptions({
     queryKey: ["booking", code],
-    queryFn: () =>
-      /^[a-f0-9]{64}$/.test(code)
-        ? getBooking({ data: { token: code } })
-        : getCustomerBooking({ data: { code } }),
+    queryFn: () => getBooking({ data: { code } }),
     // While payment is pending, keep checking so the QR pass appears on its
     // own once payment is confirmed (the page promises exactly that).
     refetchInterval: (query) =>

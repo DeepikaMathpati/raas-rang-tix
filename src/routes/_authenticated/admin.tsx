@@ -875,7 +875,7 @@ function Admin() {
                     required
                     value={referralCode}
                     onChange={(e) =>
-                      setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))
+                      setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))
                     }
                     aria-label="Referral code"
                     className={inputCls}
