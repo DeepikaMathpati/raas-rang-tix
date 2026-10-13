@@ -93,15 +93,11 @@ async function findActiveReferralCode(code: string) {
     throw new Error("This referral code is invalid or inactive.");
   }
 
-<<<<<<< HEAD
   return {
     code: referral.code,
     individualDiscountPaise: referral.discount_individual_paise,
     squadDiscountPaise: referral.discount_squad_paise,
   };
-=======
-  return referral;
->>>>>>> 21f4c4b083b44830e2c70754e11feecc64d79466
 }
 
 // ============================================================
@@ -115,28 +111,18 @@ export const createBooking = createServerFn({
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const baseAmount = PRICE_PAISE[data.passType];
     const attendeeCount = PEOPLE[data.passType];
-<<<<<<< HEAD
-    const referral = data.referralCode ? await findActiveReferralCode(data.referralCode) : null;
-    const referralCode = referral?.code ?? null;
-    const discountAmount = referral
-      ? data.passType === "individual"
-        ? referral.individualDiscountPaise
-        : referral.squadDiscountPaise
-      : 0;
-=======
     const referral = data.referralCode
       ? await findActiveReferralCode(data.referralCode)
       : null;
     const discountAmount = referral
       ? data.passType === "individual"
-        ? referral.discount_individual_paise
-        : referral.discount_squad_paise
+        ? referral.individualDiscountPaise
+        : referral.squadDiscountPaise
       : 0;
     if (data.referralCode && discountAmount === 0) {
       throw new Error("This referral code is not valid for this pass.");
     }
     const referralCode = referral?.code ?? null;
->>>>>>> 21f4c4b083b44830e2c70754e11feecc64d79466
     const amount = baseAmount - discountAmount;
     const bookingCode = "RM26-" + randomCode(8);
     const accessToken = randomAccessToken();
@@ -301,24 +287,16 @@ export const getReferralDiscount = createServerFn({
       .parse(data),
   )
   .handler(async ({ data }) => {
-<<<<<<< HEAD
-    return await findActiveReferralCode(data.code);
-=======
     const referral = await findActiveReferralCode(data.code);
     const discountPaise =
       data.passType === "squad"
-        ? referral.discount_squad_paise
-        : referral.discount_individual_paise;
+        ? referral.squadDiscountPaise
+        : referral.individualDiscountPaise;
     if (discountPaise <= 0) {
       throw new Error("This referral code is not valid for this pass.");
     }
 
-    return {
-      code: referral.code,
-      individualDiscountPaise: referral.discount_individual_paise,
-      squadDiscountPaise: referral.discount_squad_paise,
-    };
->>>>>>> 21f4c4b083b44830e2c70754e11feecc64d79466
+    return referral;
   });
 
 // ============================================================
