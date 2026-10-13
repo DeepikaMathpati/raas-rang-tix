@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import mandala from "@/assets/mandala.png";
+import mandala from "@/assets/mandala.optimized.png";
 
 export const btnGold =
   "inline-flex items-center justify-center gap-2 rounded-full bg-gold-gradient px-7 py-3.5 font-display text-sm font-semibold uppercase tracking-[0.18em] text-primary-foreground shadow-glow transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-50 disabled:pointer-events-none";

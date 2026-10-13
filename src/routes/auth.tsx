@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,30 +28,37 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
 
-    const { error } =
-      mode === "in"
-        ? await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-        : await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: window.location.origin + "/admin",
-            },
-          });
-
-    setBusy(false);
-
-    if (error) {
-      console.error("AUTH LOGIN ERROR:", error);
-      toast.error(error.message);
+    try {
+      const { error } =
+        mode === "in"
+          ? await supabase.auth.signInWithPassword({ email, password })
+          : await supabase.auth.signUp({
+              email,
+              password,
+              options: { emailRedirectTo: window.location.origin + "/admin" },
+            });
+      if (error) throw error;
+    } catch (error: unknown) {
+      console.error("Organiser authentication failed:", error);
+      toast.error(error instanceof Error ? error.message : "Could not sign in. Please try again.");
       return;
+    } finally {
+      setBusy(false);
     }
 
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.getSession();
+    let sessionResult: Awaited<ReturnType<typeof supabase.auth.getSession>> | null = null;
+    try {
+      sessionResult = await supabase.auth.getSession();
+    } catch (error: unknown) {
+      console.error("Organiser session check failed:", error);
+      toast.error("Could not confirm your sign-in. Please try again.");
+      return;
+    }
+    const { data: sessionData, error: sessionError } = sessionResult;
+    if (sessionError) {
+      toast.error("Could not confirm your sign-in. Please try again.");
+      return;
+    }
 
     const accessToken = sessionData.session?.access_token;
 
@@ -148,33 +155,46 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <form
         onSubmit={submit}
-        className="ornate-frame w-full max-w-sm space-y-4 rounded-xl p-8"
+        className="ornate-frame w-full max-w-sm space-y-4 rounded-xl p-6 sm:p-8"
       >
+        <Link
+          to="/"
+          aria-label="Raas Mahotsav home"
+          className="block text-center font-display text-xs tracking-[0.2em] text-gold-gradient"
+        >
+          RAAS MAHOTSAV
+        </Link>
         <h1 className="text-center text-xl uppercase text-gold-gradient">
           Organiser {mode === "in" ? "Sign In" : "Sign Up"}
         </h1>
 
-        <input
-          type="email"
-          required
-          placeholder="Email"
-          className={inputCls}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <label className="block space-y-1 text-sm">
+          <span>Email</span>
+          <input
+            type="email"
+            required
+            autoComplete="email"
+            className={inputCls}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
 
-        <input
-          type="password"
-          required
-          minLength={8}
-          placeholder="Password"
-          className={inputCls}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <label className="block space-y-1 text-sm">
+          <span>Password</span>
+          <input
+            type="password"
+            required
+            minLength={8}
+            autoComplete={mode === "in" ? "current-password" : "new-password"}
+            className={inputCls}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
 
-        <button disabled={busy} className={`${btnGold} w-full`}>
-          {busy ? "…" : mode === "in" ? "Sign In" : "Create account"}
+        <button type="submit" disabled={busy} className={`${btnGold} w-full`}>
+          {busy ? "Please wait…" : mode === "in" ? "Sign In" : "Create account"}
         </button>
 
         <button

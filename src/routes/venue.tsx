@@ -97,7 +97,7 @@ function VenuePage() {
               <MapPin className="mx-auto h-8 w-8 text-gold sm:mx-0" />
               <h3 className="mt-3 font-display text-xl text-gold-soft">{site.venueName}</h3>
               <p className="mt-2 text-muted-foreground">
-                Dhanwantri Hospital Road, Kootnoor, Kalaburagi
+                {site.venueAddress}
               </p>
               <a
                 href={mapUrl}

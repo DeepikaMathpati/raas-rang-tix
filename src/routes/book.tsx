@@ -123,6 +123,7 @@ function BookPage() {
   const [appliedReferral, setAppliedReferral] = useState<{
     code: string;
     individualDiscountPaise: number;
+    squadDiscountPaise: number;
   } | null>(null);
   const [checkingReferral, setCheckingReferral] = useState(false);
   const [referralError, setReferralError] = useState("");
@@ -133,13 +134,15 @@ function BookPage() {
   // One booking always represents exactly one pass.
   const total = p.price;
   const people = p.people;
-  const discountAmountPaise =
-    passType === "individual" && appliedReferral
+  const discountAmountPaise = appliedReferral
+    ? passType === "individual"
       ? appliedReferral.individualDiscountPaise
-      : 0;
+      : appliedReferral.squadDiscountPaise
+    : 0;
   const amountDuePaise = total * 100 - discountAmountPaise;
 
-  const applyReferralCode = useCallback(async (value: string) => {
+  const applyReferralCode = useCallback(
+    async (value: string) => {
       const code = value.trim().toUpperCase();
       const requestId = ++referralRequestId.current;
       setReferralError("");
@@ -169,11 +172,13 @@ function BookPage() {
           setCheckingReferral(false);
         }
       }
-  }, [lookupReferral]);
+    },
+    [lookupReferral],
+  );
 
   useEffect(() => {
-    if (ref && passType === "individual") void applyReferralCode(ref);
-  }, [applyReferralCode, passType, ref]);
+    if (ref) void applyReferralCode(ref);
+  }, [applyReferralCode, ref]);
 
   function updateSquadMember(index: number, value: string) {
     setSquadMembers((current) =>
@@ -223,7 +228,7 @@ function BookPage() {
           passType,
           quantity: 1,
           attendeeNames,
-          referralCode: passType === "individual" ? appliedReferral?.code : undefined,
+          referralCode: appliedReferral?.code,
         },
       });
 
@@ -439,73 +444,78 @@ function BookPage() {
             3 · Primary contact
           </legend>
 
-          <input
-            required
-            minLength={2}
-            maxLength={100}
-            placeholder="Full name"
-            autoComplete="name"
-            className={inputCls}
-            value={form.name}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                name: e.target.value,
-              })
-            }
-          />
-
-          <div className="flex">
-            <span className="flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-muted-foreground">
-              +91
-            </span>
-
+          <label className="block space-y-1 text-sm">
+            <span>Full name</span>
             <input
               required
-              inputMode="numeric"
-              pattern="[6-9][0-9]{9}"
-              maxLength={10}
-              placeholder="Mobile number"
-              autoComplete="tel-national"
-              className={`${inputCls} rounded-l-none`}
-              value={form.mobile}
+              minLength={2}
+              maxLength={100}
+              autoComplete="name"
+              className={inputCls}
+              value={form.name}
               onChange={(e) =>
                 setForm({
                   ...form,
-                  mobile: e.target.value.replace(/\D/g, ""),
+                  name: e.target.value,
                 })
               }
             />
-          </div>
+          </label>
 
-          <input
-            required
-            type="email"
-            maxLength={255}
-            placeholder="Email"
-            autoComplete="email"
-            className={inputCls}
-            value={form.email}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                email: e.target.value,
-              })
-            }
-          />
+          <label className="block space-y-1 text-sm">
+            <span>Mobile number</span>
+            <span className="flex">
+              <span className="flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-muted-foreground">
+                +91
+              </span>
+              <input
+                required
+                inputMode="numeric"
+                pattern="[6-9][0-9]{9}"
+                maxLength={10}
+                autoComplete="tel-national"
+                aria-label="10-digit Indian mobile number"
+                className={`${inputCls} rounded-l-none`}
+                value={form.mobile}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    mobile: e.target.value.replace(/\D/g, ""),
+                  })
+                }
+              />
+            </span>
+          </label>
+
+          <label className="block space-y-1 text-sm">
+            <span>Email address</span>
+            <input
+              required
+              type="email"
+              maxLength={255}
+              autoComplete="email"
+              className={inputCls}
+              value={form.email}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  email: e.target.value,
+                })
+              }
+            />
+          </label>
         </fieldset>
 
-        {/* Referral codes apply to individual passes only. */}
-        {passType === "individual" && (
-          <fieldset className="space-y-3">
-            <legend className="font-display text-xs uppercase tracking-[0.2em] text-gold-soft">
-              Have a referral/coupon code?
-            </legend>
+        <fieldset className="space-y-3">
+          <legend className="font-display text-xs uppercase tracking-[0.2em] text-gold-soft">
+            Have a referral/coupon code?
+          </legend>
 
-            <div className="flex gap-2">
+          <div className="flex gap-2">
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Referral code</span>
               <input
                 maxLength={24}
-                placeholder="Enter code"
                 autoCapitalize="characters"
                 autoComplete="off"
                 aria-label="Referral code"
@@ -521,30 +531,34 @@ function BookPage() {
                   setReferralError("");
                 }}
               />
-              <button
-                type="button"
-                disabled={checkingReferral || !referralCode.trim()}
-                onClick={() => void applyReferralCode(referralCode)}
-                className={btnGold}
-              >
-                {checkingReferral ? "Checking…" : "Apply"}
-              </button>
-            </div>
-            {referralError ? (
-              <p role="alert" className="text-sm text-destructive">
-                {referralError}
-              </p>
-            ) : appliedReferral ? (
-              <p className="text-sm text-success">
-                {appliedReferral.code} applied — ₹50 off.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Enter a valid code to get ₹50 off your Individual pass.
-              </p>
-            )}
-          </fieldset>
-        )}
+            </label>
+            <button
+              type="button"
+              disabled={checkingReferral || !referralCode.trim()}
+              onClick={() => void applyReferralCode(referralCode)}
+              className={btnGold}
+            >
+              {checkingReferral ? "Checking…" : "Apply"}
+            </button>
+          </div>
+          {referralError ? (
+            <p role="alert" className="text-sm text-destructive">
+              {referralError}
+            </p>
+          ) : appliedReferral && discountAmountPaise > 0 ? (
+            <p className="text-sm text-success">
+              {appliedReferral.code} applied — {inr(discountAmountPaise / 100)} off this pass.
+            </p>
+          ) : appliedReferral ? (
+            <p className="text-sm text-success">
+              {appliedReferral.code} applied — no discount is configured for this pass.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Enter a valid code to check its discount for this pass.
+            </p>
+          )}
+        </fieldset>
 
         {/* STEP 4 — SQUAD MEMBERS */}
         {passType === "squad" && (
@@ -559,18 +573,17 @@ function BookPage() {
             </p>
 
             {squadMembers.map((member, index) => (
-              <input
-                key={index}
-                required
-                minLength={2}
-                maxLength={100}
-                placeholder={`Member ${index + 2} full name`}
-                className={inputCls}
-                value={member}
-                onChange={(e) =>
-                  updateSquadMember(index, e.target.value)
-                }
-              />
+              <label key={index} className="block space-y-1 text-sm">
+                <span>Member {index + 2} full name</span>
+                <input
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  className={inputCls}
+                  value={member}
+                  onChange={(e) => updateSquadMember(index, e.target.value)}
+                />
+              </label>
             ))}
           </fieldset>
         )}
@@ -598,10 +611,8 @@ function BookPage() {
                 {people} {people === 1 ? "person" : "people"} ·{" "}
                 {EVENT_DATES.find((d) => d.value === date)?.short}
               </div>
-              {appliedReferral && passType === "individual" ? (
-                <div className="text-xs text-success">
-                  {appliedReferral.code} applied
-                </div>
+              {appliedReferral ? (
+                <div className="text-xs text-success">{appliedReferral.code} applied</div>
               ) : null}
             </div>
 

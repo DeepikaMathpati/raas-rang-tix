@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import hero from "@/assets/hero.jpg";
+import hero from "@/assets/hero.optimized.jpg";
 import { EVENT } from "@/lib/event";
-import { btnGold, btnOutline, MandalaBg } from "@/components/festive";
+import { btnGold, MandalaBg } from "@/components/festive";
 import { CinematicHeroEffects } from "@/components/cinematic-hero-effects";
 import { PublicSiteLayout, usePublicSiteSettings } from "@/components/public-site";
 
@@ -106,9 +106,6 @@ function HomePage() {
           <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link to="/book" className={`${btnGold} hero-cta`}>
               Book Your Pass
-            </Link>
-            <Link to="/event" className={btnOutline}>
-              Explore
             </Link>
           </div>
           <p className="mt-8 text-xs uppercase tracking-[0.2em] text-gold-soft sm:text-sm">

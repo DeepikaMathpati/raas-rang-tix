@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import QRCode from "qrcode";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyTickets } from "@/lib/bookings.functions";
 import { EVENT, PASSES, dateLabel, inr } from "@/lib/event";
@@ -50,13 +51,23 @@ function Qr({ value }: { value: string }) {
   }, [value]);
 
   if (error) {
-    return <p className="text-sm text-destructive">Could not generate this ticket QR code.</p>;
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        Could not generate this ticket QR code.
+      </p>
+    );
   }
   if (!src) {
     return <div className="mx-auto h-[280px] w-[280px] animate-pulse rounded bg-muted" />;
   }
   return (
-    <img src={src} alt={`Entry QR ${value}`} width={280} height={280} className="mx-auto rounded" />
+    <img
+      src={src}
+      alt={`Entry QR ${value}`}
+      width={280}
+      height={280}
+      className="mx-auto aspect-square h-auto w-full max-w-[280px] rounded"
+    />
   );
 }
 
@@ -109,7 +120,7 @@ function TicketCard({ booking }: { booking: MyTickets[number] }) {
         <div className="mt-5 text-center">
           {booking.ticket_code ? (
             <>
-              <div className="rounded-lg bg-[#f6ecd2] p-3">
+              <div className="max-w-full rounded-lg bg-[#f6ecd2] p-3">
                 <Qr value={booking.ticket_code} />
               </div>
               <p className="mt-3 font-mono text-sm">{booking.ticket_code}</p>
@@ -241,14 +252,16 @@ function MyTicketsPage() {
   }
 
   async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setTickets(null);
+      await navigate({ to: "/my-tickets", replace: true });
+      toast.success("Signed out.");
+    } catch (error: unknown) {
       console.error("Customer sign out failed:", error);
       setTicketsError("Could not sign out. Please try again.");
-      return;
     }
-    setTickets(null);
-    await navigate({ to: "/my-tickets", replace: true });
   }
 
   return (
@@ -291,7 +304,13 @@ function MyTicketsPage() {
             <div className="min-w-0">
               <h2 className="font-display text-lg uppercase text-gold-gradient">My Tickets</h2>
               <p className="mt-1 break-all text-sm text-muted-foreground">
-                {session.user.email ?? "Logged in"}
+                {session.user.email ? (
+                  <a className="text-gold underline-offset-4 hover:underline" href={`mailto:${session.user.email}`}>
+                    {session.user.email}
+                  </a>
+                ) : (
+                  "Logged in"
+                )}
               </p>
             </div>
             <button type="button" onClick={() => void signOut()} className={btnOutline}>

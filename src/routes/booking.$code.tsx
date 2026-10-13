@@ -57,15 +57,41 @@ export const Route = createFileRoute("/booking/$code")({
   }),
 
   errorComponent: () => (
-    <div className="p-10 text-center">
-      Couldn't load this booking.
-    </div>
+    <main className="flex min-h-svh items-center justify-center px-4 py-10">
+      <section className="ornate-frame max-w-md rounded-xl p-8 text-center">
+        <h1 className="text-xl text-gold">Could not load your booking</h1>
+        <p role="alert" className="mt-3 text-muted-foreground">
+          Please check your connection and try again, or look up your booking under My Tickets.
+        </p>
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link to="/my-tickets" className="text-gold underline">
+            My Tickets
+          </Link>
+          <Link to="/" className="text-gold underline">
+            Home
+          </Link>
+        </div>
+      </section>
+    </main>
   ),
 
   notFoundComponent: () => (
-    <div className="p-10 text-center">
-      Booking not found.
-    </div>
+    <main className="flex min-h-svh items-center justify-center px-4 py-10">
+      <section className="ornate-frame max-w-md rounded-xl p-8 text-center">
+        <h1 className="text-xl text-gold">Booking not found</h1>
+        <p role="alert" className="mt-3 text-muted-foreground">
+          Check the booking link or find confirmed tickets in your account.
+        </p>
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link to="/my-tickets" className="text-gold underline">
+            My Tickets
+          </Link>
+          <Link to="/" className="text-gold underline">
+            Home
+          </Link>
+        </div>
+      </section>
+    </main>
   ),
 
   component: BookingPage,
@@ -73,28 +99,46 @@ export const Route = createFileRoute("/booking/$code")({
 
 function Qr({ value }: { value: string }) {
   const [src, setSrc] = useState("");
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    QRCode.toDataURL(value, {
+    let active = true;
+    setSrc("");
+    setError(false);
+    void QRCode.toDataURL(value, {
       margin: 1,
       width: 240,
-      color: {
-        dark: "#1a0808",
-        light: "#f6ecd2",
-      },
-    }).then(setSrc);
+      color: { dark: "#1a0808", light: "#f6ecd2" },
+    })
+      .then((dataUrl) => {
+        if (active) setSrc(dataUrl);
+      })
+      .catch((cause: unknown) => {
+        console.error("Booking QR generation failed:", cause);
+        if (active) setError(true);
+      });
+    return () => {
+      active = false;
+    };
   }, [value]);
 
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        Could not generate this ticket QR code.
+      </p>
+    );
+  }
   return src ? (
     <img
       src={src}
       alt={`Entry QR ${value}`}
       width={240}
       height={240}
-      className="mx-auto rounded"
+      className="mx-auto aspect-square h-auto w-full max-w-[240px] rounded"
     />
   ) : (
-    <div className="mx-auto h-[240px] w-[240px] animate-pulse rounded bg-muted" />
+    <div className="mx-auto aspect-square w-full max-w-[240px] animate-pulse rounded bg-muted" />
   );
 }
 

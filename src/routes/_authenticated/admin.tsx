@@ -12,6 +12,7 @@ import {
   deletePendingBooking,
   getAdminData,
   setReferralActive,
+  updateReferralDiscounts,
   updateSiteSettings,
 } from "@/lib/bookings.functions";
 import { EVENT_DATES, PASSES, inr } from "@/lib/event";
@@ -93,7 +94,9 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="ornate-frame rounded-lg p-5">
       <div className="text-xs uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className="mt-2 font-display text-2xl text-gold-gradient">{value}</div>
+      <div className="mt-2 break-words font-display text-xl text-gold-gradient sm:text-2xl">
+        {value}
+      </div>
     </div>
   );
 }
@@ -105,6 +108,7 @@ function Admin() {
   const deletePendingBookingFn = useServerFn(deletePendingBooking);
   const createReferralFn = useServerFn(createReferral);
   const setReferralActiveFn = useServerFn(setReferralActive);
+  const updateReferralDiscountsFn = useServerFn(updateReferralDiscounts);
   const updateSiteSettingsFn = useServerFn(updateSiteSettings);
 
   const [q, setQ] = useState("");
@@ -131,6 +135,10 @@ function Admin() {
   const [referralName, setReferralName] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [savingReferral, setSavingReferral] = useState(false);
+  const [referralDiscountDrafts, setReferralDiscountDrafts] = useState<
+    Record<string, { individual: string; squad: string }>
+  >({});
+  const [savingReferralDiscountId, setSavingReferralDiscountId] = useState<string | null>(null);
 
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [savingSiteSettings, setSavingSiteSettings] = useState(false);
@@ -371,6 +379,45 @@ function Admin() {
     }
   }
 
+  async function saveReferralDiscounts(id: string) {
+    const referral = referrals.find((item) => item.id === id);
+    if (!referral) return;
+
+    const draft = referralDiscountDrafts[id] ?? {
+      individual: (referral.discount_individual_paise / 100).toFixed(2),
+      squad: (referral.discount_squad_paise / 100).toFixed(2),
+    };
+    const parsePaise = (value: string, maximum: number) => {
+      if (!/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
+      const amount = Math.round(Number(value) * 100);
+      return Number.isSafeInteger(amount) && amount <= maximum ? amount : null;
+    };
+    const discountIndividualPaise = parsePaise(draft.individual, 34899);
+    const discountSquadPaise = parsePaise(draft.squad, 149999);
+    if (discountIndividualPaise === null || discountSquadPaise === null) {
+      toast.error("Enter discounts from ₹0 up to ₹348.99 for Solo and ₹1,499.99 for Squad.");
+      return;
+    }
+
+    setSavingReferralDiscountId(id);
+    try {
+      await updateReferralDiscountsFn({
+        data: { id, discountIndividualPaise, discountSquadPaise },
+      });
+      setReferralDiscountDrafts((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      toast.success("Referral discounts saved.");
+      await loadAdminData();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update referral discounts.");
+    } finally {
+      setSavingReferralDiscountId(null);
+    }
+  }
+
   async function saveWebsiteSettings(e: React.FormEvent) {
     e.preventDefault();
     setSavingSiteSettings(true);
@@ -389,6 +436,17 @@ function Admin() {
       toast.error(err instanceof Error ? err.message : "Could not save website settings.");
     } finally {
       setSavingSiteSettings(false);
+    }
+
+    async function signOut() {
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        await navigate({ to: "/auth" });
+        toast.success("Signed out.");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Could not sign out.");
+      }
     }
   }
 
@@ -447,13 +505,7 @@ function Admin() {
           <button className={`${btnGold} mt-6`} onClick={() => void loadAdminData()}>
             Try again
           </button>
-          <button
-            className={`${btnOutline} mt-3`}
-            onClick={async () => {
-              await supabase.auth.signOut();
-              navigate({ to: "/auth" });
-            }}
-          >
+          <button type="button" className={`${btnOutline} mt-3`} onClick={() => void signOut()}>
             Sign out
           </button>
         </div>
@@ -469,13 +521,7 @@ function Admin() {
           <p className="mt-4 text-muted-foreground">
             Your account does not have organiser access yet.
           </p>
-          <button
-            className={`${btnOutline} mt-6`}
-            onClick={async () => {
-              await supabase.auth.signOut();
-              navigate({ to: "/auth" });
-            }}
-          >
+          <button type="button" className={`${btnOutline} mt-6`} onClick={() => void signOut()}>
             Sign out
           </button>
         </div>
@@ -496,22 +542,23 @@ function Admin() {
             <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
               Raas Mahotsav 2026
             </div>
-            <h1 className="mt-1 text-3xl uppercase text-gold-gradient">Admin Control Center</h1>
+            <h1 className="mt-1 break-words text-2xl uppercase text-gold-gradient sm:text-3xl">
+              Admin Control Center
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {isAdmin ? "Admin access" : "Staff access"}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className={btnOutline} onClick={() => void refresh()} disabled={refreshing}>
+            <button
+              type="button"
+              className={btnOutline}
+              onClick={() => void refresh()}
+              disabled={refreshing}
+            >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
             </button>
-            <button
-              className={btnOutline}
-              onClick={async () => {
-                await supabase.auth.signOut();
-                navigate({ to: "/auth" });
-              }}
-            >
+            <button type="button" className={btnOutline} onClick={() => void signOut()}>
               <LogOut className="h-4 w-4" /> Sign out
             </button>
           </div>
@@ -584,7 +631,7 @@ function Admin() {
                 <input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search name, mobile, email, booking or referral"
+                  aria-label="Search bookings by name, mobile, email, booking code, or referral"
                   className={inputCls}
                 />
                 <select
@@ -601,8 +648,8 @@ function Admin() {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[1100px] text-left text-sm">
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="w-full table-fixed text-left text-xs sm:text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
                     {[
@@ -616,7 +663,14 @@ function Admin() {
                       "Referral",
                       "Status",
                     ].map((heading) => (
-                      <th key={heading} className="px-3 py-3">
+                      <th
+                        key={heading}
+                        className={`px-1 py-3 sm:px-3 ${
+                          ["Mobile", "Date", "Referral"].includes(heading)
+                            ? "hidden xl:table-cell"
+                            : ""
+                        } ${heading === "People" ? "hidden lg:table-cell" : ""}`}
+                      >
                         {heading}
                       </th>
                     ))}
@@ -625,18 +679,18 @@ function Admin() {
                 <tbody>
                   {bookings.map((b) => (
                     <tr key={b.id} className="border-t border-border">
-                      <td className="px-3 py-3 font-mono">{b.booking_code}</td>
-                      <td className="px-3 py-3">
+                      <td className="break-all px-1 py-3 font-mono sm:px-3">{b.booking_code}</td>
+                      <td className="break-words px-1 py-3 sm:px-3">
                         <div>{b.customer_name}</div>
-                        <div className="text-xs text-muted-foreground">{b.email}</div>
+                        <div className="hidden text-xs text-muted-foreground sm:block">{b.email}</div>
                       </td>
-                      <td className="px-3 py-3">{b.mobile}</td>
-                      <td className="px-3 py-3">{b.event_date.slice(8)} Oct</td>
-                      <td className="px-3 py-3">
+                      <td className="hidden px-3 py-3 xl:table-cell">{b.mobile}</td>
+                      <td className="hidden px-3 py-3 xl:table-cell">{b.event_date.slice(8)} Oct</td>
+                      <td className="break-words px-1 py-3 sm:px-3">
                         {PASSES[b.pass_type as "individual" | "squad"]?.label ?? b.pass_type}
                       </td>
-                      <td className="px-3 py-3">{b.attendee_count}</td>
-                      <td className="px-3 py-3">
+                      <td className="hidden px-3 py-3 lg:table-cell">{b.attendee_count}</td>
+                      <td className="break-words px-1 py-3 sm:px-3">
                         <div>
                           {b.payment_status === "paid"
                             ? b.collected_amount_paise === null
@@ -652,8 +706,10 @@ function Admin() {
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-3 font-mono">{b.referral_code ?? "—"}</td>
-                      <td className="px-3 py-3">{b.payment_status}</td>
+                      <td className="hidden px-3 py-3 font-mono xl:table-cell">
+                        {b.referral_code ?? "—"}
+                      </td>
+                      <td className="break-words px-1 py-3 sm:px-3">{b.payment_status}</td>
                     </tr>
                   ))}
                   {bookings.length === 0 && (
@@ -673,7 +729,7 @@ function Admin() {
               <input
                 value={attendeeQ}
                 onChange={(e) => setAttendeeQ(e.target.value)}
-                placeholder="Search attendee, customer, mobile, email or booking"
+                aria-label="Search attendees by name, customer, mobile, email, or booking code"
                 className={`${inputCls} sm:min-w-72 sm:flex-1`}
               />
               <select
@@ -705,8 +761,8 @@ function Admin() {
               Showing {filteredAttendees.length} attendee
               {filteredAttendees.length === 1 ? "" : "s"}.
             </p>
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[1160px] text-left text-sm">
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="w-full table-fixed text-left text-xs sm:text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
                     {[
@@ -720,7 +776,14 @@ function Admin() {
                       "Check-in",
                       ...(isAdmin ? ["Actions"] : []),
                     ].map((h) => (
-                      <th key={h} className="px-3 py-3">
+                      <th
+                        key={h}
+                        className={`px-1 py-3 sm:px-3 ${
+                          ["Customer", "Mobile", "Date", "Pass", "Check-in"].includes(h)
+                            ? "hidden xl:table-cell"
+                            : ""
+                        }`}
+                      >
                         {h}
                       </th>
                     ))}
@@ -731,25 +794,31 @@ function Admin() {
                     const b = row.booking ?? {};
                     return (
                       <tr key={row.id} className="border-t border-border">
-                        <td className="px-3 py-3 font-medium">{row.attendee_name}</td>
-                        <td className="px-3 py-3 font-mono">{b.booking_code ?? "—"}</td>
-                        <td className="px-3 py-3">
+                        <td className="break-words px-1 py-3 font-medium sm:px-3">
+                          {row.attendee_name}
+                        </td>
+                        <td className="break-all px-1 py-3 font-mono sm:px-3">
+                          {b.booking_code ?? "—"}
+                        </td>
+                        <td className="hidden px-3 py-3 xl:table-cell">
                           {b.customer_name ?? "—"}
                           <div className="text-xs text-muted-foreground">{b.email ?? ""}</div>
                         </td>
-                        <td className="px-3 py-3">{b.mobile ?? "—"}</td>
-                        <td className="px-3 py-3">
+                        <td className="hidden px-3 py-3 xl:table-cell">{b.mobile ?? "—"}</td>
+                        <td className="hidden px-3 py-3 xl:table-cell">
                           {b.event_date ? `${b.event_date.slice(8)} Oct` : "—"}
                         </td>
-                        <td className="px-3 py-3">{b.pass_type ?? "—"}</td>
-                        <td className="px-3 py-3">{b.payment_status ?? "—"}</td>
-                        <td className="px-3 py-3">
+                        <td className="hidden px-3 py-3 xl:table-cell">{b.pass_type ?? "—"}</td>
+                        <td className="break-words px-1 py-3 sm:px-3">
+                          {b.payment_status ?? "—"}
+                        </td>
+                        <td className="hidden px-3 py-3 xl:table-cell">
                           {row.checked_in_at
                             ? new Date(row.checked_in_at).toLocaleString()
                             : "Not yet"}
                         </td>
                         {isAdmin && (
-                          <td className="px-3 py-3">
+                          <td className="px-1 py-3 sm:px-3">
                             {b.payment_status === "pending" && b.id && (
                               <button
                                 type="button"
@@ -792,14 +861,14 @@ function Admin() {
               <form onSubmit={addReferral} className="ornate-frame rounded-lg p-5">
                 <div className="text-lg text-gold-gradient">Create referral</div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Give a person or group a code for ₹50 off an Individual pass. Squad passes are not discounted.
+                  New codes start at ₹50 off Solo and no Squad discount. Edit either amount in the referral list.
                 </div>
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_auto]">
                   <input
                     required
                     value={referralName}
                     onChange={(e) => setReferralName(e.target.value)}
-                    placeholder="Referral name (e.g. Priya)"
+                    aria-label="Referral name"
                     className={inputCls}
                   />
                   <input
@@ -808,7 +877,7 @@ function Admin() {
                     onChange={(e) =>
                       setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))
                     }
-                    placeholder="Code (e.g. PRIYA)"
+                    aria-label="Referral code"
                     className={inputCls}
                   />
                   <button type="submit" disabled={savingReferral} className={btnGold}>
@@ -818,21 +887,31 @@ function Admin() {
               </form>
             )}
 
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[1050px] text-left text-sm">
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="w-full table-fixed text-left text-xs sm:text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
                     {[
                       "Referral",
                       "Code",
-                      "Individual discount",
+                      "Solo discount",
+                      "Squad discount",
                       "Bookings",
                       "Attendees",
                       "Revenue",
                       "Link",
                       "Active",
                     ].map((h) => (
-                      <th key={h} className="px-3 py-3">
+                      <th
+                        key={h}
+                        className={`px-1 py-3 sm:px-3 ${
+                          ["Code", "Bookings", "Attendees", "Revenue"].includes(h)
+                            ? "hidden xl:table-cell"
+                            : h === "Link" || h === "Active"
+                              ? "hidden sm:table-cell"
+                              : ""
+                        }`}
+                      >
                         {h}
                       </th>
                     ))}
@@ -841,25 +920,138 @@ function Admin() {
                 <tbody>
                   {referrals.map((r) => (
                     <tr key={r.id} className="border-t border-border">
-                      <td className="px-3 py-3">{r.name}</td>
-                      <td className="px-3 py-3 font-mono">{r.code}</td>
-                      <td className="px-3 py-3">
-                        ₹50 (Squad: no discount)
-                      </td>
-                      <td className="px-3 py-3">{r.bookings}</td>
-                      <td className="px-3 py-3">{r.attendees}</td>
-                      <td className="px-3 py-3">{inr(r.revenue)}</td>
-                      <td className="px-3 py-3">
-                        <div className="flex gap-2">
-                          <button className={btnOutline} onClick={() => void copyReferral(r.link)}>
-                            <Copy className="h-4 w-4" /> Copy
+                      <td className="break-words px-1 py-3 sm:px-3">
+                        {r.name}
+                        <div className="font-mono text-xs text-muted-foreground xl:hidden">
+                          {r.code}
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 sm:hidden">
+                          <button
+                            type="button"
+                            className="rounded border border-gold/50 p-1 text-gold"
+                            onClick={() => void copyReferral(r.link)}
+                            aria-label={`Copy referral link for ${r.name}`}
+                          >
+                            <Copy className="h-4 w-4" />
                           </button>
-                          <a className={btnOutline} href={r.link} target="_blank" rel="noreferrer">
-                            <ExternalLink className="h-4 w-4" /> Open
+                          {isAdmin && (
+                            <Switch
+                              checked={r.active}
+                              onCheckedChange={(checked) => void toggleReferral(r.id, checked)}
+                              aria-label={`${r.active ? "Pause" : "Activate"} referral ${r.name}`}
+                            />
+                          )}{!isAdmin && (
+                            <span className="text-xs text-muted-foreground">
+                              {r.active ? "Active" : "Paused"}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="hidden px-3 py-3 font-mono xl:table-cell">{r.code}</td>
+                      <td className="px-1 py-3 sm:px-3">
+                        {isAdmin ? (
+                          <label className="flex min-w-0 items-center gap-1">
+                            <span className="sr-only">Solo discount for {r.name}</span>
+                            <span aria-hidden="true">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="348.99"
+                              step="0.01"
+                              aria-label={`Solo referral discount for ${r.name}`}
+                              className={`${inputCls} min-w-0 px-1 py-1 sm:w-28 sm:px-2`}
+                              value={
+                                referralDiscountDrafts[r.id]?.individual ??
+                                (r.discount_individual_paise / 100).toFixed(2)
+                              }
+                              disabled={savingReferralDiscountId === r.id}
+                              onChange={(e) =>
+                                setReferralDiscountDrafts((current) => ({
+                                  ...current,
+                                  [r.id]: {
+                                    individual: e.target.value,
+                                    squad:
+                                      current[r.id]?.squad ??
+                                      (r.discount_squad_paise / 100).toFixed(2),
+                                  },
+                                }))
+                              }
+                            />
+                          </label>
+                        ) : (
+                          inr(r.discount_individual_paise / 100)
+                        )}
+                      </td>
+                      <td className="px-1 py-3 sm:px-3">
+                        {isAdmin ? (
+                          <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center">
+                            <label className="flex min-w-0 items-center gap-1">
+                              <span className="sr-only">Squad discount for {r.name}</span>
+                              <span aria-hidden="true">₹</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="1499.99"
+                                step="0.01"
+                                aria-label={`Squad referral discount for ${r.name}`}
+                                className={`${inputCls} min-w-0 px-1 py-1 sm:w-28 sm:px-2`}
+                                value={
+                                  referralDiscountDrafts[r.id]?.squad ??
+                                  (r.discount_squad_paise / 100).toFixed(2)
+                                }
+                                disabled={savingReferralDiscountId === r.id}
+                                onChange={(e) =>
+                                  setReferralDiscountDrafts((current) => ({
+                                    ...current,
+                                    [r.id]: {
+                                      individual:
+                                        current[r.id]?.individual ??
+                                        (r.discount_individual_paise / 100).toFixed(2),
+                                      squad: e.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              className={`${btnOutline} px-2 py-1.5`}
+                              disabled={savingReferralDiscountId === r.id}
+                              onClick={() => void saveReferralDiscounts(r.id)}
+                            >
+                              {savingReferralDiscountId === r.id ? "Saving…" : "Save"}
+                            </button>
+                          </div>
+                        ) : (
+                          inr(r.discount_squad_paise / 100)
+                        )}
+                      </td>
+                      <td className="hidden px-3 py-3 xl:table-cell">{r.bookings}</td>
+                      <td className="hidden px-3 py-3 xl:table-cell">{r.attendees}</td>
+                      <td className="hidden px-3 py-3 xl:table-cell">{inr(r.revenue)}</td>
+                      <td className="hidden px-1 py-3 sm:table-cell sm:px-3">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className={`${btnOutline} px-2 py-2`}
+                            onClick={() => void copyReferral(r.link)}
+                            aria-label={`Copy referral link for ${r.name}`}
+                          >
+                            <Copy className="h-4 w-4" />
+                            <span className="hidden sm:inline">Copy</span>
+                          </button>
+                          <a
+                            className={`${btnOutline} hidden px-2 py-2 md:inline-flex`}
+                            href={r.link}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Open
                           </a>
                         </div>
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="hidden px-1 py-3 sm:table-cell sm:px-3">
                         {isAdmin ? (
                           <Switch
                             checked={r.active}
@@ -875,7 +1067,7 @@ function Admin() {
                   ))}
                   {referrals.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={9} className="p-8 text-center text-muted-foreground">
                         No referrals yet.
                       </td>
                     </tr>
@@ -929,7 +1121,7 @@ function Admin() {
                 <input
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="Ticket code — T-…"
+                  aria-label="Ticket code"
                   className={inputCls}
                   required
                 />

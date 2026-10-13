@@ -1,12 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Camera, Music, ShoppingBag, Sparkles, Utensils } from "lucide-react";
-import bloomingMindsLogo from "@/assets/blooming-minds-international-school.jpeg";
-import parvatiSilksLogo from "@/assets/parvati-silks.jpeg";
-import veerabhadreshwaraEventsLogo from "@/assets/veerabhadreshwara-events.jpeg";
-import royalCafeBossLogo from "@/assets/royal-cafe-boss.png";
-import tengliJewellersLogo from "@/assets/tengli-jewellers.png";
+import bloomingMindsLogo from "@/assets/blooming-minds-international-school.optimized.jpg";
+import parvatiSilksLogo from "@/assets/parvati-silks.optimized.jpg";
+import veerabhadreshwaraEventsLogo from "@/assets/veerabhadreshwara-events.optimized.jpg";
+import royalCafeBossLogo from "@/assets/royal-cafe-boss.optimized.jpg";
+import tengliJewellersLogo from "@/assets/tengli-jewellers.optimized.jpg";
 import { EVENT, HIGHLIGHTS } from "@/lib/event";
-import { btnGold, MandalaBg, SectionTitle } from "@/components/festive";
+import { MandalaBg, SectionTitle } from "@/components/festive";
 import { PublicSiteLayout, usePublicSiteSettings } from "@/components/public-site";
 
 export const Route = createFileRoute("/event")({
@@ -156,9 +156,6 @@ function EventPage() {
 
       <section className="px-5 py-12 text-center">
         <p className="font-script text-4xl text-ember">{EVENT.tagline}</p>
-        <Link to="/passes" className={`${btnGold} mt-5`}>
-          Explore Passes
-        </Link>
       </section>
     </PublicSiteLayout>
   );

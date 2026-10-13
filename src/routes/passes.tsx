@@ -29,10 +29,10 @@ function PassesPage() {
           <p className="mx-auto -mt-5 mb-8 max-w-xl text-center text-lg text-gold-soft">
             Each pass is valid for <strong>one selected night only.</strong>
           </p>
-          <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+          <div className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-2">
             <article className="ornate-frame flex flex-col rounded-xl p-8 text-center sm:p-10">
               <h3 className="font-display uppercase tracking-widest text-gold-soft">Individual</h3>
-              <div className="mt-4 font-display text-6xl text-gold-gradient">
+              <div className="mt-4 font-display text-5xl text-gold-gradient sm:text-6xl">
                 {inr(PASSES.individual.price)}
               </div>
               <p className="text-muted-foreground">per person</p>
@@ -48,7 +48,7 @@ function PassesPage() {
                 <Users className="h-4 w-4" />
                 Squad
               </h3>
-              <div className="mt-4 font-display text-6xl text-gold-gradient">
+              <div className="mt-4 font-display text-5xl text-gold-gradient sm:text-6xl">
                 {inr(PASSES.squad.price)}
               </div>
               <p className="text-muted-foreground">for 5 people</p>

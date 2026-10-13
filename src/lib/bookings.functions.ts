@@ -63,11 +63,24 @@ function razorpayCreds() {
   };
 }
 
+async function markBookingPaymentFailed(bookingId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin
+    .from("bookings")
+    .update({ payment_status: "failed" })
+    .eq("id", bookingId)
+    .eq("payment_status", "pending");
+
+  if (error) {
+    console.error("Could not mark booking payment as failed:", error);
+  }
+}
+
 async function findActiveReferralCode(code: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: referral, error } = await supabaseAdmin
     .from("referrals")
-    .select("code")
+    .select("code, discount_individual_paise, discount_squad_paise")
     .eq("code", code.toUpperCase())
     .eq("active", true)
     .maybeSingle();
@@ -80,7 +93,11 @@ async function findActiveReferralCode(code: string) {
     throw new Error("This referral code is invalid or inactive.");
   }
 
-  return referral.code;
+  return {
+    code: referral.code,
+    individualDiscountPaise: referral.discount_individual_paise,
+    squadDiscountPaise: referral.discount_squad_paise,
+  };
 }
 
 // ============================================================
@@ -94,11 +111,13 @@ export const createBooking = createServerFn({
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const baseAmount = PRICE_PAISE[data.passType];
     const attendeeCount = PEOPLE[data.passType];
-    const referralCode =
-      data.passType === "individual" && data.referralCode
-        ? await findActiveReferralCode(data.referralCode)
-        : null;
-    const discountAmount = referralCode ? REFERRAL_DISCOUNT_PAISE : 0;
+    const referral = data.referralCode ? await findActiveReferralCode(data.referralCode) : null;
+    const referralCode = referral?.code ?? null;
+    const discountAmount = referral
+      ? data.passType === "individual"
+        ? referral.individualDiscountPaise
+        : referral.squadDiscountPaise
+      : 0;
     const amount = baseAmount - discountAmount;
     const bookingCode = "RM26-" + randomCode(8);
     const accessToken = randomAccessToken();
@@ -128,6 +147,14 @@ export const createBooking = createServerFn({
       .single();
     if (bookingError || !booking) {
       console.error("Booking insert failed:", bookingError);
+      if (
+        bookingError?.message.toLowerCase().includes("access_token") &&
+        /(column|schema cache|field)/i.test(bookingError.message)
+      ) {
+        throw new Error(
+          "Booking setup is incomplete. Please ask the organizer to apply the latest Supabase migration.",
+        );
+      }
       throw new Error("Could not create booking. Please try again.");
     }
     // --------------------------------------------------------
@@ -164,34 +191,41 @@ export const createBooking = createServerFn({
     // --------------------------------------------------------
     // 4. Create Razorpay order
     // --------------------------------------------------------
-    const razorpayResponse = await fetch("https://api.razorpay.com/v1/orders", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Basic " + btoa(`${creds.keyId}:${creds.secret}`),
-      },
-      body: JSON.stringify({
-        amount,
-        currency: "INR",
-        receipt: bookingCode,
-        notes: {
-          booking_code: bookingCode,
-          event_date: data.eventDate,
-          pass_type: data.passType,
+    let razorpayResponse: Response;
+    try {
+      razorpayResponse = await fetch("https://api.razorpay.com/v1/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Basic " + btoa(`${creds.keyId}:${creds.secret}`),
         },
-      }),
-    });
+        body: JSON.stringify({
+          amount,
+          currency: "INR",
+          receipt: bookingCode,
+          notes: {
+            booking_code: bookingCode,
+            event_date: data.eventDate,
+            pass_type: data.passType,
+          },
+        }),
+      });
+    } catch (error) {
+      console.error("Razorpay order request failed:", error);
+      await markBookingPaymentFailed(booking.id);
+      throw new Error("Payment could not be started. Please check your connection and try again.");
+    }
     if (!razorpayResponse.ok) {
-      const errorText = await razorpayResponse.text();
-      console.error("Razorpay order creation failed:", razorpayResponse.status, errorText);
-      return {
-        bookingCode,
-        accessToken,
-        baseAmount,
-        discountAmount,
-        amount,
-        paymentsConfigured: false as const,
-      };
+      console.error("Razorpay order creation failed:", {
+        status: razorpayResponse.status,
+        statusText: razorpayResponse.statusText,
+      });
+      await markBookingPaymentFailed(booking.id);
+      throw new Error(
+        razorpayResponse.status === 401 || razorpayResponse.status === 403
+          ? "Payment setup needs attention. Please contact the organizer before trying again."
+          : "Payment could not be started. Please try again in a moment.",
+      );
     }
     const order = (await razorpayResponse.json()) as {
       id: string;
@@ -207,6 +241,7 @@ export const createBooking = createServerFn({
       .eq("id", booking.id);
     if (bookingUpdateError) {
       console.error("Could not save Razorpay order ID:", bookingUpdateError);
+      await markBookingPaymentFailed(booking.id);
       throw new Error("Could not prepare payment. Please try again.");
     }
     // --------------------------------------------------------
@@ -220,6 +255,7 @@ export const createBooking = createServerFn({
     });
     if (paymentInsertError) {
       console.error("Payment record creation failed:", paymentInsertError);
+      await markBookingPaymentFailed(booking.id);
       throw new Error("Could not prepare payment. Please try again.");
     }
     return {
@@ -241,13 +277,7 @@ export const getReferralDiscount = createServerFn({
     z.object({ code: z.string().trim().min(3).max(24).regex(/^[A-Z0-9-]+$/i) }).parse(data),
   )
   .handler(async ({ data }) => {
-    const code = await findActiveReferralCode(data.code);
-
-    return {
-      code,
-      individualDiscountPaise: REFERRAL_DISCOUNT_PAISE,
-      squadDiscountPaise: 0,
-    };
+    return await findActiveReferralCode(data.code);
   });
 
 // ============================================================
@@ -1085,6 +1115,33 @@ export const setReferralActive = createServerFn({
       .update({ active: data.active })
       .eq("id", data.id);
     if (error) throw new Error("Could not update referral.");
+    return { ok: true as const };
+  });
+export const updateReferralDiscounts = createServerFn({
+  method: "POST",
+})
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        discountIndividualPaise: z.number().int().min(0).max(34899),
+        discountSquadPaise: z.number().int().min(0).max(149999),
+      })
+      .parse(data),
+  )
+  .handler(async ({ context, data }) => {
+    const { isAdmin } = await requireAdminRole(context.userId);
+    if (!isAdmin) throw new Error("Only admins can manage referrals.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("referrals")
+      .update({
+        discount_individual_paise: data.discountIndividualPaise,
+        discount_squad_paise: data.discountSquadPaise,
+      })
+      .eq("id", data.id);
+    if (error) throw new Error("Could not update referral discounts.");
     return { ok: true as const };
   });
 export const updateSiteSettings = createServerFn({
